@@ -35,7 +35,6 @@ ENV/
 
 # Reports
 report.md
-*.md
 
 # Logs
 *.log

@@ -48,8 +48,8 @@ The framework is divided into four powerful modes, each representing a different
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/trimurti-pentest.git
-cd trimurti-pentest
+git clone https://github.com/mnshchtri/TrimurtiSec.git
+cd TrimurtiSec
 ```
 
 2. Create and activate a virtual environment:

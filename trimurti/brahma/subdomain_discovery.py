@@ -1,14 +1,9 @@
 import socket
-import dns.resolver
-import dns.query
-import dns.zone
-import requests
 import subprocess
 import json
 import os
 from rich.console import Console
 from rich.progress import Progress
-from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Set
 
 console = Console()
@@ -18,11 +13,8 @@ class SubdomainDiscovery:
         self.target = target
         self.subdomains = set()
         self.live_subdomains = set()
-        self.status_codes = {
-            '2xx': [200, 201, 202, 203],
-            '4xx': [400, 401, 402, 403],
-            '5xx': [500, 501, 502, 503]
-        }
+        # Create reports directory
+        os.makedirs('reports', exist_ok=True)
         self._ensure_tools_installed()
 
     def _ensure_tools_installed(self):
@@ -55,7 +47,7 @@ class SubdomainDiscovery:
         results += f"Target Domain: {self.target}\n\n"
 
         with Progress() as progress:
-            task = progress.add_task("[green]Discovering subdomains...", total=4)
+            task = progress.add_task("[green]Discovering subdomains...", total=2)
 
             # Subfinder enumeration
             console.log(f"Running Subfinder for {self.target}")
@@ -67,30 +59,27 @@ class SubdomainDiscovery:
             self._probe_with_httpx()
             progress.update(task, advance=1)
 
-            # Certificate transparency
-            console.log("Checking certificate transparency logs")
-            self._check_certificate_transparency()
-            progress.update(task, advance=1)
-
-            # Zone transfer
-            console.log("Attempting DNS zone transfer")
-            self._attempt_zone_transfer()
-            progress.update(task, advance=1)
-
         # Format results
         results += self._format_results()
+        
+        # Save report to reports directory
+        report_file = 'reports/subdomain_discovery_report.md'
+        with open(report_file, 'w') as f:
+            f.write(results)
+            
+        console.print(f"[green]Report saved to: {report_file}[/green]")
         return results
 
     def _run_subfinder(self):
         """Run Subfinder for subdomain enumeration"""
         try:
             # Run Subfinder with various options
-            cmd = f"subfinder -d {self.target} -silent -o subfinder_results.txt"
+            cmd = f"subfinder -d {self.target} -silent -o reports/subfinder_results.txt"
             subprocess.run(cmd, shell=True, check=True)
             
             # Parse results
-            if os.path.exists('subfinder_results.txt'):
-                with open('subfinder_results.txt', 'r') as f:
+            if os.path.exists('reports/subfinder_results.txt'):
+                with open('reports/subfinder_results.txt', 'r') as f:
                     for line in f:
                         subdomain = line.strip()
                         if subdomain:
@@ -101,65 +90,47 @@ class SubdomainDiscovery:
             console.log(f"[red]Error running Subfinder: {str(e)}[/red]")
 
     def _probe_with_httpx(self):
-        """Probe subdomains with HTTPX using two-step approach"""
+        """Probe subdomains with HTTPX"""
         try:
-            # Save subdomains to temporary file
-            with open('temp_subdomains.txt', 'w') as f:
-                for subdomain in self.subdomains:
-                    f.write(f"{subdomain}\n")
-
-            console.print("[yellow]Running HTTPX probe (Step 1: Finding live hosts)...[/yellow]")
-            
-            # Step 1: Find live hosts with 2xx status codes
-            cmd1 = (
-                "cat temp_subdomains.txt | httpx "
-                "-status-code -ip -tech-detect "
-                "-match-status 200,201,202,203 "
+            # Run HTTPX to find live hosts with status code 200
+            cmd = (
+                f"httpx -list reports/subfinder_results.txt "
                 "-silent "
-                "> live_hosts.txt"
-            )
-            
-            process1 = subprocess.run(cmd1, shell=True, capture_output=True, text=True)
-            if process1.returncode != 0:
-                console.print(f"[red]HTTPX Step 1 error: {process1.stderr}[/red]")
-                return
-
-            console.print("[yellow]Running HTTPX probe (Step 2: Getting detailed information)...[/yellow]")
-            
-            # Step 2: Get detailed information for all hosts
-            cmd2 = (
-                "cat temp_subdomains.txt | httpx "
-                "-location -status-code -server -title "
-                "-filter-status 400,401,402,403 "
+                "-status-code "
+                "-ip "
+                "-tech-detect "
+                "-match-status 200 "
                 "-json "
-                "-o httpx_results.json"
+                "-o reports/httpx_results.json"
             )
             
-            process2 = subprocess.run(cmd2, shell=True, capture_output=True, text=True)
-            if process2.returncode != 0:
-                console.print(f"[red]HTTPX Step 2 error: {process2.stderr}[/red]")
+            process = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            if process.returncode != 0:
+                console.print(f"[red]HTTPX error: {process.stderr}[/red]")
                 return
 
-            # Process live hosts
-            if os.path.exists('live_hosts.txt'):
-                with open('live_hosts.txt', 'r') as f:
+            # Process results
+            if os.path.exists('reports/httpx_results.json'):
+                with open('reports/httpx_results.json', 'r') as f:
                     for line in f:
-                        subdomain = line.strip()
-                        if subdomain:
-                            self.live_subdomains.add(subdomain)
-                            console.print(f"[green]Found live subdomain: {subdomain}[/green]")
-
-            # Clean up temporary files
-            for file in ['temp_subdomains.txt', 'live_hosts.txt']:
-                if os.path.exists(file):
-                    os.remove(file)
+                        try:
+                            result = json.loads(line.strip())
+                            url = result.get('url', '').replace('https://', '').replace('http://', '')
+                            if url:
+                                self.live_subdomains.add(url)
+                                console.print(f"[green]Found live subdomain: {url}[/green]")
+                        except json.JSONDecodeError:
+                            continue
 
         except Exception as e:
             console.print(f"[red]Error running HTTPX: {str(e)}[/red]")
 
     def _format_results(self) -> str:
         """Format the discovery results"""
-        results = "### Discovered Subdomains\n\n"
+        results = "## Subdomain Discovery Results\n\n"
+        results += f"Target Domain: {self.target}\n\n"
+
+        results += "### Discovered Subdomains\n\n"
         results += "| Subdomain | IP Address | Status Code | Server | Title |\n"
         results += "|:----------|:-----------|:------------|:-------|:------|\n"
 
@@ -168,8 +139,8 @@ class SubdomainDiscovery:
             return results
 
         try:
-            if os.path.exists('httpx_results.json'):
-                with open('httpx_results.json', 'r') as f:
+            if os.path.exists('reports/httpx_results.json'):
+                with open('reports/httpx_results.json', 'r') as f:
                     for line in f:
                         try:
                             result = json.loads(line.strip())
@@ -179,7 +150,6 @@ class SubdomainDiscovery:
                             server = result.get('server', 'N/A')
                             title = result.get('title', 'N/A')
                             
-                            # Format the row with proper alignment
                             results += f"| {subdomain} | {ip} | {status} | {server} | {title} |\n"
                         except json.JSONDecodeError:
                             continue
@@ -201,6 +171,12 @@ class SubdomainDiscovery:
             for subdomain in sorted(self.live_subdomains):
                 results += f"- {subdomain}\n"
         
+        # Add file locations
+        results += "\n### Report Files\n\n"
+        results += "- Subfinder results: `reports/subfinder_results.txt`\n"
+        results += "- Detailed results: `reports/httpx_results.json`\n"
+        results += "- Full report: `reports/subdomain_discovery_report.md`\n"
+
         return results
 
     def _is_ip_address(self, address):
@@ -209,41 +185,3 @@ class SubdomainDiscovery:
             return True
         except socket.error:
             return False
-
-    def _check_certificate_transparency(self):
-        url = f"https://crt.sh/?q=%.{self.target}&output=json"
-        headers = {"User-Agent": "Mozilla/5.0"}
-
-        try:
-            response = requests.get(url, headers=headers, timeout=10)
-            if response.status_code == 200:
-                try:
-                    data = response.json()
-                    for entry in data:
-                        domain = entry.get('name_value', '').lower()
-                        if domain.startswith('*.'):
-                            domain = domain[2:]
-                        if domain.endswith(self.target) and domain != self.target:
-                            self.subdomains.add(domain.strip())
-                except ValueError:
-                    console.log("Failed to parse JSON from crt.sh")
-        except Exception as e:
-            console.log(f"Error checking certificate transparency: {str(e)}")
-
-    def _attempt_zone_transfer(self):
-        try:
-            ns_records = dns.resolver.resolve(self.target, 'NS')
-            for ns in ns_records:
-                nameserver = str(ns).rstrip('.')
-                console.log(f"Trying zone transfer on {nameserver}")
-                try:
-                    zone = dns.zone.from_xfr(dns.query.xfr(nameserver, self.target))
-                    for name, _ in zone.nodes.items():
-                        subdomain = f"{name}.{self.target}".lower()
-                        if subdomain != self.target:
-                            self.subdomains.add(subdomain)
-                    console.log(f"Zone transfer successful on {nameserver}")
-                except Exception:
-                    console.log(f"Zone transfer failed or denied on {nameserver}")
-        except Exception as e:
-            console.log(f"Error retrieving NS records: {str(e)}")

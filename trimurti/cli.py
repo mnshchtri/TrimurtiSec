@@ -14,7 +14,25 @@ logging.basicConfig(
 )
 logger = logging.getLogger('trimurti')
 
-@click.group()
+@click.group(help="""
+   ▄▄▄▄▀ █▄▄▄▄ ▄█ █▀▄▀█   ▄   █▄▄▄▄    ▄▄▄▄▀ ▄█    ▄▄▄▄▄   ▄███▄   ▄█▄    
+▀▀▀ █    █  ▄▀ ██ █ █ █    █  █  ▄▀ ▀▀▀ █    ██   █     ▀▄ █▀   ▀  █▀ ▀▄  
+    █    █▀▀▌  ██ █ ▄ █ █   █ █▀▀▌      █    ██ ▄  ▀▀▀▀▄   ██▄▄    █   ▀  
+   █     █  █  ▐█ █   █ █   █ █  █     █     ▐█  ▀▄▄▄▄▀    █▄   ▄▀ █▄  ▄▀ 
+  ▀        █    ▐    █  █▄ ▄█   █     ▀       ▐            ▀███▀   ▀███▀  
+          ▀         ▀    ▀▀▀   ▀                                          
+
+    Trimurti - Advanced Penetration Testing Framework
+    Version: 1.0.0
+
+Trimurti - Advanced Penetration Testing Framework
+
+Usage:
+  trimurti run --target example.com --mode brahma
+  trimurti run --target 192.168.1.1 --mode vishnu
+  trimurti run --target target.com --mode shiva
+  trimurti run --target 10.0.0.1 --mode god
+""")
 def cli():
     """Trimurti - Advanced Penetration Testing Framework
     
@@ -24,7 +42,20 @@ def cli():
       trimurti run --target target.com --mode shiva
       trimurti run --target 10.0.0.1 --mode god
     """
-    pass
+    banner = """
+       ▄▄▄▄▀ █▄▄▄▄ ▄█ █▀▄▀█   ▄   █▄▄▄▄    ▄▄▄▄▀ ▄█    ▄▄▄▄▄   ▄███▄   ▄█▄    
+▀▀▀ █    █  ▄▀ ██ █ █ █    █  █  ▄▀ ▀▀▀ █    ██   █     ▀▄ █▀   ▀  █▀ ▀▄  
+    █    █▀▀▌  ██ █ ▄ █ █   █ █▀▀▌      █    ██ ▄  ▀▀▀▀▄   ██▄▄    █   ▀  
+   █     █  █  ▐█ █   █ █   █ █  █     █     ▐█  ▀▄▄▄▄▀    █▄   ▄▀ █▄  ▄▀ 
+  ▀        █    ▐    █  █▄ ▄█   █     ▀       ▐            ▀███▀   ▀███▀  
+          ▀         ▀    ▀▀▀   ▀                                          
+                                                                           
+    Trimurti - Advanced Penetration Testing Framework
+    Version: 1.0.0
+    """
+    click.echo(banner)
+    click.echo("Initializing modules...")
+    click.echo("Checking dependencies...")
 
 @cli.command()
 @click.option('--target', '-t', required=True, help='Target IP or domain')

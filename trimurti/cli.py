@@ -6,6 +6,13 @@ from trimurti.brahma.port_scanner import PortScanner
 from trimurti.vishnu.c2_server import C2Server
 from trimurti.shiva.exploit import Exploiter
 from trimurti.god_mode.full_control import GodMode
+from trimurti.utils.enhanced_progress import (
+    TrimurtiProgressTracker, AnimatedSpinner, create_hacking_simulation_progress
+)
+from rich.console import Console
+from rich.panel import Panel
+from rich.align import Align
+from rich.text import Text
 
 # Configure logging
 logging.basicConfig(
@@ -42,7 +49,10 @@ def cli():
       trimurti run --target target.com --mode shiva
       trimurti run --target 10.0.0.1 --mode god
     """
-    banner = """
+    console = Console()
+    
+    # Enhanced banner with dramatic presentation
+    banner_text = """
 ████████╗██████╗ ██╗███╗   ███╗██╗   ██╗██████╗ ████████╗██╗
 ╚══██╔══╝██╔══██╗██║████╗ ████║██║   ██║██╔══██╗╚══██╔══╝██║
    ██║   ██████╔╝██║██╔████╔██║██║   ██║██████╔╝   ██║   ██║
@@ -50,12 +60,24 @@ def cli():
    ██║   ██║  ██║██║██║ ╚═╝ ██║╚██████╔╝██║  ██║   ██║   ██║
    ╚═╝   ╚═╝  ╚═╝╚═╝╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝
 
-    TrimurtiSec - Advanced Penetration Testing Framework
-    Version: 1.0.0
+🔱 TrimurtiSec - Advanced Penetration Testing Framework 🔱
+                        Version: 1.0.0
     """
-    click.echo(banner)
-    click.echo("Initializing modules...")
-    click.echo("Checking dependencies...")
+    
+    banner_panel = Panel(
+        Align.center(Text(banner_text, style="bold red")),
+        border_style="red",
+        padding=(1, 2)
+    )
+    
+    console.print(banner_panel)
+    
+    # Animated initialization
+    with AnimatedSpinner("🚀 Initializing TrimurtiSec Framework...", "dots12"):
+        import time
+        time.sleep(1.5)  # Dramatic pause
+    
+    console.print("✅ [bold green]Framework ready for cyber operations![/bold green]\n")
 
 @cli.command()
 @click.option('--target', '-t', required=True, help='Target IP or domain')
@@ -79,26 +101,45 @@ def run(target, mode, output, subdomain_discovery, method, exploit, action, verb
     
     report = ReportGenerator(target=target)
     
+    console = Console()
+    
     try:
         if mode == 'brahma':
-            click.echo("🔍 Entering Brahma Mode - Reconnaissance Phase")
+            # Create dramatic initialization sequence
+            brahma_steps = [
+                "🔍 Initializing reconnaissance modules...",
+                "🌐 Establishing network connections...",
+                "🎯 Targeting reconnaissance sensors...",
+                "🔬 Deploying scanning algorithms..."
+            ]
+            create_hacking_simulation_progress(brahma_steps, target)
+            
             scanner = PortScanner(target)
             
-            # Perform port scanning
+            # Perform port scanning with enhanced progress
             results = scanner.scan()
             report.add_section("Reconnaissance Results", results)
             
             # Perform subdomain discovery if requested
             if subdomain_discovery:
-                click.echo("🔍 Performing subdomain discovery")
+                console.print("\n🔍 [bold blue]Initiating Advanced Subdomain Discovery...[/bold blue]")
                 subdomain_results = scanner.discover_subdomains()
                 report.add_section("Subdomain Discovery Results", subdomain_results)
             
         elif mode == 'vishnu':
             if not method:
                 raise click.BadOptionUsage('--method', 'Method is required for Vishnu mode')
-                
-            click.echo(f"🔐 Entering Vishnu Mode - Persistence Phase with {method} method")
+            
+            # Vishnu mode dramatic sequence
+            vishnu_steps = [
+                "🔐 Activating preservation protocols...",
+                "🔗 Establishing persistent connections...",
+                "🛡️ Deploying stealth mechanisms...",
+                "📡 Creating command channels...",
+                "🎭 Implementing evasion techniques..."
+            ]
+            create_hacking_simulation_progress(vishnu_steps, target)
+            
             c2 = C2Server(target)
             results = c2.establish_persistence(method)
             report.add_section("Persistence Results", results)
@@ -106,8 +147,17 @@ def run(target, mode, output, subdomain_discovery, method, exploit, action, verb
         elif mode == 'shiva':
             if not exploit:
                 raise click.BadOptionUsage('--exploit', 'Exploit type is required for Shiva mode')
-                
-            click.echo(f"💥 Entering Shiva Mode - Destruction Phase with {exploit} exploit")
+            
+            # Shiva mode dramatic sequence
+            shiva_steps = [
+                "💥 Charging destructive capabilities...",
+                "🎯 Identifying vulnerability vectors...",
+                "⚡ Weaponizing exploit payloads...",
+                "🔥 Initiating penetration sequence...",
+                "💀 Executing exploitation protocols..."
+            ]
+            create_hacking_simulation_progress(shiva_steps, target)
+            
             exploiter = Exploiter(target)
             results = exploiter.run_exploits(exploit_type=exploit)
             report.add_section("Exploitation Results", results)
@@ -115,16 +165,33 @@ def run(target, mode, output, subdomain_discovery, method, exploit, action, verb
         elif mode == 'god':
             if not action:
                 raise click.BadOptionUsage('--action', 'Action is required for God mode')
-                
-            click.echo(f"👑 Entering God Mode - Full Control with {action} action")
+            
+            # God mode ultimate sequence
+            god_steps = [
+                "👑 Ascending to supreme authority...",
+                "⚡ Channeling omnipotent capabilities...",
+                "🌟 Unlocking universal access protocols...",
+                "💎 Manifesting total system domination...",
+                "🔮 Achieving transcendent control...",
+                "🌌 Becoming one with the digital realm..."
+            ]
+            create_hacking_simulation_progress(god_steps, target)
+            
             god = GodMode(target)
             results = god.take_control(action)
             report.add_section("God Mode Results", results)
         
-        report.generate(output)
-        click.echo(f"Report generated: {output}")
+        # Generate report with final animation
+        with AnimatedSpinner("📊 Generating comprehensive report...", "dots12"):
+            import time
+            time.sleep(1)
+            report.generate(output)
+        
+        console.print(f"✅ [bold green]Report successfully generated: {output}[/bold green]")
+        console.print("🎯 [bold cyan]Mission accomplished![/bold cyan]")
         
     except Exception as e:
+        console.print(f"❌ [bold red]Critical error in {mode} mode: {str(e)}[/bold red]")
         logger.error(f"Error in {mode} mode: {str(e)}")
         raise
 
@@ -143,17 +210,34 @@ def discover_subdomains(target, output, verbose, quiet):
     else:
         logger.setLevel(logging.INFO)
     
+    console = Console()
+    
     try:
-        click.echo(f"🔍 Discovering subdomains for {target}")
+        console.print(f"🔍 [bold blue]Initiating subdomain discovery for {target}[/bold blue]")
+        
+        # Create dramatic subdomain discovery sequence
+        discovery_steps = [
+            "🔍 Initializing subdomain enumeration engines...",
+            "🌐 Querying global DNS infrastructure...",
+            "📡 Scanning certificate transparency logs...",
+            "🕷️ Crawling web archives..."
+        ]
+        create_hacking_simulation_progress(discovery_steps, target)
+        
         scanner = PortScanner(target)
         results = scanner.discover_subdomains()
         
-        report = ReportGenerator(target=target)
-        report.add_section("Subdomain Discovery Results", results)
-        report.generate(output)
-        click.echo(f"Report generated: {output}")
+        with AnimatedSpinner("📊 Compiling discovery report...", "dots12"):
+            import time
+            time.sleep(1)
+            report = ReportGenerator(target=target)
+            report.add_section("Subdomain Discovery Results", results)
+            report.generate(output)
+            
+        console.print(f"✅ [bold green]Discovery report generated: {output}[/bold green]")
         
     except Exception as e:
+        console.print(f"❌ [bold red]Error in subdomain discovery: {str(e)}[/bold red]")
         logger.error(f"Error in subdomain discovery: {str(e)}")
         raise
 
@@ -172,17 +256,34 @@ def vulnerability_scan(target, output, verbose, quiet):
     else:
         logger.setLevel(logging.INFO)
     
+    console = Console()
+    
     try:
-        click.echo(f"🔍 Performing vulnerability scan on {target}")
+        console.print(f"🔍 [bold red]Initiating vulnerability assessment on {target}[/bold red]")
+        
+        # Create dramatic vulnerability scan sequence
+        vuln_steps = [
+            "🛡️ Loading vulnerability databases...",
+            "🎯 Targeting security weaknesses...",
+            "💥 Deploying exploit detection scripts...",
+            "🔬 Analyzing security posture..."
+        ]
+        create_hacking_simulation_progress(vuln_steps, target)
+        
         scanner = PortScanner(target)
         results = scanner.vulnerability_scan()
         
-        report = ReportGenerator(target=target)
-        report.add_section("Vulnerability Scan Results", results)
-        report.generate(output)
-        click.echo(f"Report generated: {output}")
+        with AnimatedSpinner("📊 Compiling vulnerability assessment...", "dots12"):
+            import time
+            time.sleep(1)
+            report = ReportGenerator(target=target)
+            report.add_section("Vulnerability Scan Results", results)
+            report.generate(output)
+            
+        console.print(f"✅ [bold green]Vulnerability report generated: {output}[/bold green]")
         
     except Exception as e:
+        console.print(f"❌ [bold red]Error in vulnerability scan: {str(e)}[/bold red]")
         logger.error(f"Error in vulnerability scan: {str(e)}")
         raise
 
@@ -190,5 +291,7 @@ if __name__ == '__main__':
     try:
         cli()
     except Exception as e:
+        console = Console()
+        console.print(f"💀 [bold red]CRITICAL SYSTEM FAILURE: {str(e)}[/bold red]")
         logger.error(f"Critical error: {str(e)}")
-        raise 
+        raise

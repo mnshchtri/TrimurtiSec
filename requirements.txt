@@ -1,0 +1,12 @@
+click>=8.0.0
+markdown>=3.3.0
+requests>=2.26.0
+scapy>=2.4.5
+python-nmap>=0.7.1
+paramiko>=2.8.1
+colorama>=0.4.4
+rich>=10.12.0
+dnspython>=2.2.0
+reportlab>=4.0.0
+weasyprint>=65.0
+jinja2>=3.1.0

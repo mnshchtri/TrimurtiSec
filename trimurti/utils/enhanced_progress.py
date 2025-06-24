@@ -18,6 +18,8 @@ from rich.layout import Layout
 from contextlib import contextmanager
 import threading
 import random
+from datetime import datetime
+from fpdf import FPDF
 
 console = Console()
 
@@ -238,7 +240,89 @@ class TrimurtiProgressTracker:
             table.add_row(key, str(value))
             
         self.console.print(table)
+
+    def generate_pdf_report(self, stats: dict, output_path: str):
+        """Generate a PDF report with a professional design."""
         
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=15)
+        
+        # Set fonts
+        pdf.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)
+        pdf.add_font('DejaVu', 'B', 'DejaVuSans-Bold.ttf', uni=True)
+        
+        # Header
+        pdf.set_font('DejaVu', 'B', 24)
+        pdf.set_text_color(220, 50, 50)
+        pdf.cell(0, 15, 'TrimurtiSec Cyber Operation Report', 0, 1, 'C')
+        
+        # Sub-header
+        pdf.set_font('DejaVu', '', 12)
+        pdf.set_text_color(128, 128, 128)
+        pdf.cell(0, 10, f"Report generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", 0, 1, 'C')
+        pdf.ln(10)
+        
+        # Operation Details
+        pdf.set_font('DejaVu', 'B', 16)
+        pdf.set_text_color(0, 0, 0)
+        pdf.cell(0, 10, 'Operation Details', 0, 1, 'L')
+        
+        pdf.set_font('DejaVu', '', 12)
+        pdf.set_fill_color(240, 240, 240)
+        
+        details = [
+            ("Target:", self.target),
+            ("Mode:", f"{self.mode_info['emoji']} {self.mode_info['name']}"),
+        ]
+        
+        for title, value in details:
+            pdf.set_font('DejaVu', 'B', 12)
+            pdf.cell(40, 10, title, 0, 0, 'L')
+            pdf.set_font('DejaVu', '', 12)
+            pdf.cell(0, 10, value, 0, 1, 'L')
+        pdf.ln(10)
+
+        # Scan Statistics
+        pdf.set_font('DejaVu', 'B', 16)
+        pdf.cell(0, 10, 'Scan Statistics', 0, 1, 'L')
+        
+        pdf.set_font('DejaVu', 'B', 12)
+        pdf.set_fill_color(220, 50, 50)
+        pdf.set_text_color(255, 255, 255)
+        
+        pdf.cell(95, 10, 'Metric', 1, 0, 'C', 1)
+        pdf.cell(95, 10, 'Value', 1, 1, 'C', 1)
+
+        pdf.set_font('DejaVu', '', 12)
+        pdf.set_text_color(0, 0, 0)
+        pdf.set_fill_color(245, 245, 245)
+        
+        fill = False
+        for key, value in stats.items():
+            pdf.cell(95, 10, key, 1, 0, 'L', fill)
+            pdf.cell(95, 10, str(value), 1, 1, 'L', fill)
+            fill = not fill
+        pdf.ln(15)
+
+        # Footer
+        pdf.set_y(-30)
+        pdf.set_font('DejaVu', '', 10)
+        pdf.set_text_color(128, 128, 128)
+        pdf.cell(0, 10, 'CONFIDENTIAL: This report is for authorized personnel only.', 0, 1, 'C')
+        pdf.cell(0, 10, 'TrimurtiSec © 2024', 0, 1, 'C')
+
+        try:
+            pdf.output(output_path)
+            self.console.print(f"✅ [bold green]PDF report generated at: {output_path}[/bold green]")
+        except Exception as e:
+            if "DejaVuSans.ttf" in str(e):
+                self.console.print("[bold red]Error: DejaVu font not found.[/bold red]")
+                self.console.print("Please download it from: https://www.fontsquirrel.com/fonts/dejavu-sans")
+                self.console.print("And place 'DejaVuSans.ttf' and 'DejaVuSans-Bold.ttf' in your project directory.")
+            else:
+                self.console.print(f"[bold red]Error generating PDF: {e}[/bold red]")
+
     def show_live_updates(self, updates: List[str], duration: float = 5.0):
         """Show live scrolling updates"""
         def generate_updates():
@@ -258,7 +342,7 @@ def create_hacking_simulation_progress(steps: List[str], target: str):
     header = f"""
     ╔══════════════════════════════════════════════════════╗
     ║           🚀 INITIATING CYBER OPERATION 🚀           ║
-    ║                 TARGET: {target:<20}          ║
+    ║                 TARGET: {target:<20}                 ║
     ╚══════════════════════════════════════════════════════╝
     """
     
@@ -330,6 +414,20 @@ def demo_enhanced_progress():
         "Escalating privileges"
     ]
     create_hacking_simulation_progress(steps, "192.168.1.100")
+
+    # Demo 4: PDF Report Generation
+    console.print("\n[bold blue]Demo 4: PDF Report Generation[/bold blue]")
+    report_tracker = TrimurtiProgressTracker("shiva", "api.example.com")
+    report_stats = {
+        "Vulnerabilities Found": 5,
+        "Critical CVEs": 2,
+        "Exploits Attempted": 3,
+        "Successful Exploits": 1,
+        "Data Exfiltrated": "2.5 GB",
+        "Scan Duration": "45.2 minutes"
+    }
+    report_tracker.show_completion_stats(report_stats)
+    report_tracker.generate_pdf_report(report_stats, "trimurti_scan_report.pdf")
 
 if __name__ == "__main__":
     demo_enhanced_progress()

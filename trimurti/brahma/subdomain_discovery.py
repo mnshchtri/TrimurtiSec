@@ -5,6 +5,8 @@ import os
 from rich.console import Console
 from rich.progress import Progress
 from typing import List, Dict, Set
+from datetime import datetime
+from fpdf import FPDF
 from trimurti.utils.enhanced_progress import TrimurtiProgressTracker, AnimatedSpinner, create_hacking_simulation_progress
 
 console = Console()
@@ -98,12 +100,107 @@ class SubdomainDiscovery:
         tracker.show_completion_stats(discovery_stats)
         
         # Save report to reports directory
-        report_file = 'reports/subdomain_discovery_report.md'
-        with open(report_file, 'w') as f:
-            f.write(results)
+        report_file = f'reports/subdomain_discovery_report_{self.target}.pdf'
+        self._generate_pdf_report(discovery_stats, report_file)
             
         console.print(f"✅ [green]Report saved to: {report_file}[/green]")
-        return results
+        return "Subdomain discovery complete. Report generated."
+
+    def _generate_pdf_report(self, stats: dict, output_path: str):
+        """Generate a PDF report for subdomain discovery."""
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=15)
+
+        # Add fonts that support a wider range of characters
+        try:
+            pdf.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)
+            pdf.add_font('DejaVu', 'B', 'DejaVuSans-Bold.ttf', uni=True)
+            font_family = 'DejaVu'
+        except RuntimeError:
+            console.print("[yellow]DejaVu font not found. Using Arial.[/yellow]")
+            font_family = 'Arial'
+
+        # Header
+        pdf.set_font(font_family, 'B', 24)
+        pdf.set_text_color(40, 40, 40)
+        pdf.cell(0, 15, 'Subdomain Discovery Report', 0, 1, 'C')
+
+        # Sub-header
+        pdf.set_font(font_family, '', 12)
+        pdf.set_text_color(128, 128, 128)
+        pdf.cell(0, 10, f"Target: {self.target}", 0, 1, 'C')
+        pdf.cell(0, 5, f"Report Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", 0, 1, 'C')
+        pdf.ln(10)
+
+        # Summary Stats
+        pdf.set_font(font_family, 'B', 16)
+        pdf.cell(0, 10, 'Discovery Summary', 0, 1, 'L')
+        
+        pdf.set_font(font_family, '', 12)
+        pdf.set_fill_color(245, 245, 245)
+        
+        for key, value in stats.items():
+            pdf.set_font(font_family, 'B', 12)
+            pdf.cell(60, 10, str(key), 0, 0, 'L')
+            pdf.set_font(font_family, '', 12)
+            pdf.cell(0, 10, str(value), 0, 1, 'L')
+        pdf.ln(10)
+
+        # Results Table
+        pdf.set_font(font_family, 'B', 16)
+        pdf.cell(0, 10, 'Live Subdomains', 0, 1, 'L')
+
+        if not self.live_subdomains:
+            pdf.set_font(font_family, '', 12)
+            pdf.cell(0, 10, "No live subdomains were discovered.", 0, 1, 'L')
+        else:
+            pdf.set_font(font_family, 'B', 10)
+            pdf.set_fill_color(70, 130, 180) # SteelBlue
+            pdf.set_text_color(255, 255, 255)
+            
+            col_widths = {'Subdomain': 80, 'IP Address': 40, 'Status': 20, 'Server': 50}
+            for header, width in col_widths.items():
+                pdf.cell(width, 10, header, 1, 0, 'C', 1)
+            pdf.ln()
+
+            pdf.set_font(font_family, '', 9)
+            pdf.set_text_color(0, 0, 0)
+            fill = False
+            
+            if os.path.exists('reports/httpx_results.json'):
+                with open('reports/httpx_results.json', 'r') as f:
+                    for line in f:
+                        try:
+                            result = json.loads(line.strip())
+                            subdomain = result.get('url', '').replace('https://', '').replace('http://', '')
+                            if subdomain in self.live_subdomains:
+                                ip = result.get('a', ['N/A'])[0]
+                                status = str(result.get('status_code', 'N/A'))
+                                server = result.get('webserver', 'N/A')
+                                
+                                pdf.set_fill_color(245, 245, 245) if fill else pdf.set_fill_color(255, 255, 255)
+                                pdf.cell(col_widths['Subdomain'], 10, subdomain, 1, 0, 'L', 1)
+                                pdf.cell(col_widths['IP Address'], 10, ip, 1, 0, 'L', 1)
+                                pdf.cell(col_widths['Status'], 10, status, 1, 0, 'C', 1)
+                                pdf.cell(col_widths['Server'], 10, server, 1, 1, 'L', 1)
+                                fill = not fill
+                        except (json.JSONDecodeError, KeyError):
+                            continue
+        
+        pdf.ln(10)
+        
+        # Footer
+        pdf.set_y(-25)
+        pdf.set_font(font_family, '', 10)
+        pdf.set_text_color(128, 128, 128)
+        pdf.cell(0, 10, 'TrimurtiSec Subdomain Discovery', 0, 1, 'C')
+        pdf.cell(0, 10, f'Page {pdf.page_no()}', 0, 0, 'C')
+
+        try:
+            pdf.output(output_path)
+        except Exception as e:
+            console.print(f"[bold red]Error generating PDF report: {e}[/bold red]")
 
     def _run_subfinder(self):
         """Run Subfinder for subdomain enumeration"""
@@ -156,7 +253,7 @@ class SubdomainDiscovery:
                             url = result.get('url', '').replace('https://', '').replace('http://', '')
                             if url:
                                 self.live_subdomains.add(url)
-                                console.print(f"✅ [green]Found live subdomain: {url}[/green]")
+                                # console.print(f"✅ [green]Found live subdomain: {url}[/green]")
                         except json.JSONDecodeError:
                             continue
 

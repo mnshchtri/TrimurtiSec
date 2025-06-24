@@ -82,7 +82,7 @@ def cli():
 @cli.command()
 @click.option('--target', '-t', required=True, help='Target IP or domain')
 @click.option('--mode', '-m', type=click.Choice(['brahma', 'vishnu', 'shiva', 'god']), required=True)
-@click.option('--output', '-o', default='report.md', help='Output report file')
+@click.option('--output', '-o', default='report.pdf', help='Output report file')
 @click.option('--subdomain-discovery', '-s', is_flag=True, help='Perform subdomain discovery (Brahma mode only)')
 @click.option('--method', '-mth', help='Specific method for Vishnu mode (cron|service|registry)')
 @click.option('--exploit', '-e', help='Specific exploit type for Shiva mode (sql|buffer|command)')
@@ -197,7 +197,7 @@ def run(target, mode, output, subdomain_discovery, method, exploit, action, verb
 
 @cli.command()
 @click.option('--target', '-t', required=True, help='Target domain (not an IP address)')
-@click.option('--output', '-o', default='subdomains.md', help='Output report file')
+@click.option('--output', '-o', default='subdomains.pdf', help='Output report file')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
 @click.option('--quiet', '-q', is_flag=True, help='Suppress all output except errors')
 def discover_subdomains(target, output, verbose, quiet):
@@ -243,10 +243,11 @@ def discover_subdomains(target, output, verbose, quiet):
 
 @cli.command()
 @click.option('--target', '-t', required=True, help='Target IP or domain')
-@click.option('--output', '-o', default='vuln_report.md', help='Output report file')
+@click.option('--output', '-o', default='vuln_report.pdf', help='Output report file')
+@click.option('--scan-type', default='default', help='Type of vulnerability scan to perform')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
 @click.option('--quiet', '-q', is_flag=True, help='Suppress all output except errors')
-def vulnerability_scan(target, output, verbose, quiet):
+def vulnerability_scan(target, output, scan_type, verbose, quiet):
     """Perform a detailed vulnerability scan on the target"""
     # Configure logging level based on verbosity
     if verbose:

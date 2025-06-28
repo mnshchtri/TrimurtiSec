@@ -1,6 +1,6 @@
 # TrimurtiSec - Advanced Penetration Testing Framework
 
-![TrimurtiSec Logo](./Images/logo.png)
+![TrimurtiSec Logo](./Images/coverimage.png)
 
 [![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/mnshchtri/TrimurtiSec)
 [![Python](https://img.shields.io/badge/python-3.9+-green.svg)](https://python.org)

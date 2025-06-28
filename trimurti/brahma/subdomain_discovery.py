@@ -2,6 +2,8 @@ import socket
 import subprocess
 import json
 import os
+import time
+import yaml
 from rich.console import Console
 from rich.progress import Progress
 from typing import List, Dict, Set
@@ -104,6 +106,7 @@ class SubdomainDiscovery:
         self._generate_pdf_report(discovery_stats, report_file)
             
         console.print(f"[green]Report saved to: {report_file}[/green]")
+        
         return "Subdomain discovery complete. Report generated."
 
     def _generate_pdf_report(self, stats: dict, output_path: str):
@@ -743,3 +746,529 @@ class SubdomainDiscovery:
             return True
         except socket.error:
             return False
+    
+    def _run_vulnerability_scan(self) -> dict:
+        """Run automated vulnerability scanning on live subdomains using multiple tools"""
+        vuln_results = {
+            'nuclei_findings': [],
+            'nikto_findings': [],
+            'whatweb_findings': [],
+            'ssl_findings': [],
+            'total_vulnerabilities': 0,
+            'critical_count': 0,
+            'high_count': 0,
+            'medium_count': 0,
+            'low_count': 0,
+            'info_count': 0
+        }
+        
+        if not self.live_subdomains:
+            console.print("[yellow]No live subdomains to scan[/yellow]")
+            return vuln_results
+        
+        # Ensure vulnerability scanning tools are available
+        self._ensure_vuln_tools_installed()
+        
+        # Create URLs file for scanning
+        urls_file = 'reports/live_subdomains.txt'
+        with open(urls_file, 'w') as f:
+            for subdomain in self.live_subdomains:
+                f.write(f"https://{subdomain}\n")
+                f.write(f"http://{subdomain}\n")
+        
+        console.print(f"[cyan]Scanning {len(self.live_subdomains)} live subdomains for vulnerabilities...[/cyan]")
+        
+        # Run Nuclei vulnerability scanner
+        vuln_results['nuclei_findings'] = self._run_nuclei_scan(urls_file)
+        
+        # Run additional scans if tools are available
+        vuln_results['whatweb_findings'] = self._run_whatweb_scan()
+        vuln_results['ssl_findings'] = self._run_ssl_scan()
+        
+        # Calculate vulnerability counts
+        for finding in vuln_results['nuclei_findings']:
+            severity = finding.get('severity', 'info').lower()
+            vuln_results['total_vulnerabilities'] += 1
+            
+            if severity == 'critical':
+                vuln_results['critical_count'] += 1
+            elif severity == 'high':
+                vuln_results['high_count'] += 1
+            elif severity == 'medium':
+                vuln_results['medium_count'] += 1
+            elif severity == 'low':
+                vuln_results['low_count'] += 1
+            else:
+                vuln_results['info_count'] += 1
+        
+        console.print(f"[green]Vulnerability scanning complete. Found {vuln_results['total_vulnerabilities']} potential issues.[/green]")
+        return vuln_results
+    
+    def _ensure_vuln_tools_installed(self):
+        """Ensure vulnerability scanning tools are installed"""
+        console.print("[cyan]Checking vulnerability scanning tools...[/cyan]")
+        
+        # Check Nuclei
+        try:
+            subprocess.run(['nuclei', '-version'], capture_output=True, check=True)
+            console.log("Nuclei is available")
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            console.print("[yellow]Installing Nuclei...[/yellow]")
+            try:
+                subprocess.run([
+                    'go', 'install', '-v', 'github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest'
+                ], check=True)
+                console.log("Nuclei installed successfully")
+            except Exception as e:
+                console.print(f"[red]Failed to install Nuclei: {e}[/red]")
+        
+        # Update Nuclei templates
+        try:
+            console.print("[cyan]Updating Nuclei templates...[/cyan]")
+            subprocess.run(['nuclei', '-update-templates'], capture_output=True, timeout=60)
+            console.log("Nuclei templates updated")
+        except Exception as e:
+            console.print(f"[yellow]Could not update Nuclei templates: {e}[/yellow]")
+    
+    def _run_nuclei_scan(self, urls_file: str) -> list:
+        """Run Nuclei vulnerability scanner"""
+        nuclei_findings = []
+        nuclei_output = 'reports/nuclei_results.json'
+        
+        try:
+            console.print("[cyan]Running Nuclei vulnerability scan...[/cyan]")
+            
+            # Run Nuclei with comprehensive templates
+            cmd = [
+                'nuclei',
+                '-list', urls_file,
+                '-json',
+                '-o', nuclei_output,
+                '-severity', 'critical,high,medium,low',
+                '-tags', 'cve,xss,sqli,rce,lfi,ssrf,redirect,exposure',
+                '-timeout', '10',
+                '-retries', '2',
+                '-rate-limit', '100'
+            ]
+            
+            process = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+            
+            if os.path.exists(nuclei_output):
+                with open(nuclei_output, 'r') as f:
+                    for line in f:
+                        try:
+                            finding = json.loads(line.strip())
+                            nuclei_findings.append(finding)
+                        except json.JSONDecodeError:
+                            continue
+                
+                console.print(f"[green]Nuclei found {len(nuclei_findings)} potential vulnerabilities[/green]")
+            else:
+                console.print("[yellow]No Nuclei results file generated[/yellow]")
+                
+        except subprocess.TimeoutExpired:
+            console.print("[yellow]Nuclei scan timed out after 5 minutes[/yellow]")
+        except Exception as e:
+            console.print(f"[red]Error running Nuclei: {str(e)}[/red]")
+        
+        return nuclei_findings
+    
+    def _run_whatweb_scan(self) -> list:
+        """Run WhatWeb for technology detection"""
+        whatweb_findings = []
+        
+        try:
+            console.print("[cyan]Running WhatWeb technology detection...[/cyan]")
+            
+            for subdomain in list(self.live_subdomains)[:10]:  # Limit to first 10 to avoid timeout
+                try:
+                    cmd = ['whatweb', '--log-json=reports/whatweb_temp.json', f"https://{subdomain}"]
+                    subprocess.run(cmd, capture_output=True, timeout=30)
+                    
+                    if os.path.exists('reports/whatweb_temp.json'):
+                        with open('reports/whatweb_temp.json', 'r') as f:
+                            for line in f:
+                                try:
+                                    finding = json.loads(line.strip())
+                                    finding['subdomain'] = subdomain
+                                    whatweb_findings.append(finding)
+                                except json.JSONDecodeError:
+                                    continue
+                        os.remove('reports/whatweb_temp.json')
+                        
+                except subprocess.TimeoutExpired:
+                    continue
+                except Exception:
+                    continue
+                    
+        except Exception as e:
+            console.print(f"[yellow]WhatWeb scan failed: {str(e)}[/yellow]")
+        
+        return whatweb_findings
+    
+    def _run_ssl_scan(self) -> list:
+        """Run SSL/TLS configuration analysis"""
+        ssl_findings = []
+        
+        try:
+            console.print("[cyan]Analyzing SSL/TLS configurations...[/cyan]")
+            
+            for subdomain in list(self.live_subdomains)[:5]:  # Limit to avoid timeout
+                try:
+                    # Use openssl to check SSL certificate
+                    cmd = ['openssl', 's_client', '-connect', f"{subdomain}:443", '-servername', subdomain]
+                    process = subprocess.run(cmd, input="\n", capture_output=True, text=True, timeout=10)
+                    
+                    ssl_info = {
+                        'subdomain': subdomain,
+                        'ssl_available': False,
+                        'certificate_info': '',
+                        'issues': []
+                    }
+                    
+                    if process.returncode == 0:
+                        ssl_info['ssl_available'] = True
+                        
+                        # Parse certificate information
+                        if 'Certificate chain' in process.stdout:
+                            ssl_info['certificate_info'] = 'Valid SSL certificate found'
+                        
+                        # Check for common SSL issues
+                        if 'verify error' in process.stdout.lower():
+                            ssl_info['issues'].append('Certificate verification error')
+                        if 'self signed' in process.stdout.lower():
+                            ssl_info['issues'].append('Self-signed certificate')
+                        if 'expired' in process.stdout.lower():
+                            ssl_info['issues'].append('Expired certificate')
+                    else:
+                        ssl_info['issues'].append('SSL/TLS not available or accessible')
+                    
+                    ssl_findings.append(ssl_info)
+                    
+                except subprocess.TimeoutExpired:
+                    ssl_findings.append({
+                        'subdomain': subdomain,
+                        'ssl_available': False,
+                        'issues': ['SSL scan timeout']
+                    })
+                except Exception:
+                    continue
+                    
+        except Exception as e:
+            console.print(f"[yellow]SSL scan failed: {str(e)}[/yellow]")
+        
+        return ssl_findings
+    
+    def _generate_vulnerability_report(self, vuln_results: dict, output_path: str):
+        """Generate comprehensive vulnerability assessment PDF report"""
+        
+        class VulnPDF(FPDF):
+            def __init__(self):
+                super().__init__()
+                self.logo_path = 'Images/logo.png' if os.path.exists('Images/logo.png') else None
+                
+            def header(self):
+                """Add header with logo to every page"""
+                if self.logo_path:
+                    try:
+                        logo_width = 25
+                        logo_height = 20
+                        x_pos = self.w - logo_width - 10
+                        self.image(self.logo_path, x_pos, 8, logo_width, logo_height)
+                    except Exception:
+                        pass
+                
+                self.set_font('Arial', 'B', 12)
+                self.set_text_color(70, 70, 70)
+                self.cell(0, 10, 'TrimurtiSec Vulnerability Assessment Report', 0, 0, 'L')
+                self.ln(15)
+                
+            def footer(self):
+                """Add footer to every page"""
+                self.set_y(-15)
+                self.set_font('Arial', '', 8)
+                self.set_text_color(128, 128, 128)
+                self.cell(0, 10, f'TrimurtiSec Vulnerability Report | Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")} | Page {self.page_no()}', 0, 0, 'C')
+        
+        pdf = VulnPDF()
+        pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=15)
+        
+        font_family = 'Arial'
+        console.print("[cyan]Generating vulnerability assessment report...[/cyan]")
+        
+        # Title Page with Logo
+        if pdf.logo_path:
+            try:
+                logo_width = 60
+                logo_height = 45
+                x_pos = (pdf.w - logo_width) / 2
+                pdf.set_xy(x_pos, 50)
+                pdf.image(pdf.logo_path, x_pos, 50, logo_width, logo_height)
+                pdf.ln(50)
+            except Exception:
+                pdf.ln(30)
+        else:
+            pdf.ln(30)
+        
+        pdf.set_font(font_family, 'B', 28)
+        pdf.set_text_color(20, 20, 20)
+        pdf.cell(0, 20, 'TrimurtiSec Vulnerability Assessment', 0, 1, 'C')
+        
+        pdf.set_font(font_family, 'B', 18)
+        pdf.set_text_color(60, 60, 60)
+        pdf.cell(0, 15, 'Automated Security Vulnerability Scan', 0, 1, 'C')
+        
+        pdf.ln(20)
+        pdf.set_font(font_family, '', 14)
+        pdf.set_text_color(100, 100, 100)
+        pdf.cell(0, 10, f"Target Domain: {self.target}", 0, 1, 'C')
+        pdf.cell(0, 8, f"Scan Date: {datetime.now().strftime('%B %d, %Y')}", 0, 1, 'C')
+        pdf.cell(0, 8, f"Report Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}", 0, 1, 'C')
+        
+        # Risk level assessment
+        total_vulns = vuln_results['total_vulnerabilities']
+        critical_count = vuln_results['critical_count']
+        high_count = vuln_results['high_count']
+        medium_count = vuln_results['medium_count']
+        
+        if critical_count > 0:
+            risk_level = "CRITICAL"
+            risk_color = (139, 0, 0)  # Dark red
+        elif high_count > 0:
+            risk_level = "HIGH"
+            risk_color = (255, 0, 0)  # Red
+        elif medium_count > 0:
+            risk_level = "MEDIUM"
+            risk_color = (255, 165, 0)  # Orange
+        elif total_vulns > 0:
+            risk_level = "LOW"
+            risk_color = (255, 255, 0)  # Yellow
+        else:
+            risk_level = "INFORMATIONAL"
+            risk_color = (0, 128, 0)  # Green
+        
+        pdf.ln(30)
+        pdf.set_font(font_family, 'B', 16)
+        pdf.set_text_color(risk_color[0], risk_color[1], risk_color[2])
+        pdf.cell(0, 10, f'OVERALL RISK LEVEL: {risk_level}', 0, 1, 'C')
+        
+        # Add new page for executive summary
+        pdf.add_page()
+        pdf.ln(10)
+        
+        # Executive Summary
+        pdf.set_font(font_family, 'B', 20)
+        pdf.set_text_color(40, 40, 40)
+        pdf.cell(0, 15, 'EXECUTIVE SUMMARY', 0, 1, 'L')
+        pdf.ln(5)
+        
+        pdf.set_font(font_family, '', 12)
+        pdf.set_text_color(60, 60, 60)
+        
+        exec_summary = (
+            f"This vulnerability assessment report presents the findings from an automated security "
+            f"scan conducted against {len(self.live_subdomains)} live subdomains of {self.target}. "
+            f"The assessment utilized industry-standard vulnerability scanning tools including Nuclei, "
+            f"SSL/TLS analysis, and technology detection to identify potential security weaknesses.\n\n"
+            f"The scan identified {total_vulns} total security findings across the target infrastructure. "
+            f"These findings include {critical_count} critical, {high_count} high, {medium_count} medium, "
+            f"{vuln_results['low_count']} low, and {vuln_results['info_count']} informational issues. "
+            f"Each finding requires appropriate remediation based on its severity level and potential impact."
+        )
+        
+        # Wrap executive summary text
+        words = exec_summary.split()
+        line = ""
+        for word in words:
+            if pdf.get_string_width(line + word + " ") < 180:
+                line += word + " "
+            else:
+                pdf.cell(0, 6, line.strip(), 0, 1, 'L')
+                line = word + " "
+        if line:
+            pdf.cell(0, 6, line.strip(), 0, 1, 'L')
+        
+        pdf.ln(15)
+        
+        # Vulnerability Summary Table
+        pdf.set_font(font_family, 'B', 16)
+        pdf.cell(0, 10, 'VULNERABILITY SUMMARY', 0, 1, 'L')
+        pdf.ln(5)
+        
+        # Create summary table
+        pdf.set_font(font_family, 'B', 12)
+        pdf.set_fill_color(70, 130, 180)
+        pdf.set_text_color(255, 255, 255)
+        
+        col_widths = {'Severity': 40, 'Count': 30, 'Risk Level': 60, 'Priority': 60}
+        for header, width in col_widths.items():
+            pdf.cell(width, 10, header, 1, 0, 'C', 1)
+        pdf.ln()
+        
+        pdf.set_font(font_family, '', 11)
+        pdf.set_text_color(0, 0, 0)
+        
+        severity_data = [
+            ('Critical', critical_count, 'Immediate Action Required', 'P1 - Fix Immediately'),
+            ('High', high_count, 'High Risk', 'P2 - Fix Within 24h'),
+            ('Medium', medium_count, 'Medium Risk', 'P3 - Fix Within 1 Week'),
+            ('Low', vuln_results['low_count'], 'Low Risk', 'P4 - Fix Within 1 Month'),
+            ('Info', vuln_results['info_count'], 'Informational', 'P5 - Monitor')
+        ]
+        
+        fill = False
+        for severity, count, risk, priority in severity_data:
+            if count > 0:  # Only show rows with findings
+                pdf.set_fill_color(245, 245, 245) if fill else pdf.set_fill_color(255, 255, 255)
+                pdf.cell(col_widths['Severity'], 8, severity, 1, 0, 'L', 1)
+                pdf.cell(col_widths['Count'], 8, str(count), 1, 0, 'C', 1)
+                pdf.cell(col_widths['Risk Level'], 8, risk, 1, 0, 'L', 1)
+                pdf.cell(col_widths['Priority'], 8, priority, 1, 1, 'L', 1)
+                fill = not fill
+        
+        pdf.ln(10)
+        
+        # Detailed Findings Section
+        if vuln_results['nuclei_findings']:
+            pdf.add_page()
+            pdf.ln(10)
+            
+            pdf.set_font(font_family, 'B', 20)
+            pdf.set_text_color(40, 40, 40)
+            pdf.cell(0, 15, 'DETAILED VULNERABILITY FINDINGS', 0, 1, 'L')
+            pdf.ln(5)
+            
+            # Group findings by severity
+            findings_by_severity = {
+                'critical': [],
+                'high': [],
+                'medium': [],
+                'low': [],
+                'info': []
+            }
+            
+            for finding in vuln_results['nuclei_findings']:
+                severity = finding.get('severity', 'info').lower()
+                findings_by_severity[severity].append(finding)
+            
+            # Display findings by severity (highest first)
+            for severity in ['critical', 'high', 'medium', 'low', 'info']:
+                if findings_by_severity[severity]:
+                    pdf.set_font(font_family, 'B', 16)
+                    severity_colors = {
+                        'critical': (139, 0, 0),
+                        'high': (255, 0, 0),
+                        'medium': (255, 165, 0),
+                        'low': (255, 255, 0),
+                        'info': (0, 128, 0)
+                    }
+                    color = severity_colors.get(severity, (0, 0, 0))
+                    pdf.set_text_color(color[0], color[1], color[2])
+                    pdf.cell(0, 10, f'{severity.upper()} SEVERITY FINDINGS ({len(findings_by_severity[severity])})', 0, 1, 'L')
+                    pdf.ln(3)
+                    
+                    for i, finding in enumerate(findings_by_severity[severity][:10], 1):  # Limit to 10 per severity
+                        pdf.set_font(font_family, 'B', 12)
+                        pdf.set_text_color(40, 40, 40)
+                        
+                        finding_title = finding.get('info', {}).get('name', 'Unknown Vulnerability')
+                        pdf.cell(0, 8, f"{i}. {finding_title}", 0, 1, 'L')
+                        
+                        pdf.set_font(font_family, '', 10)
+                        pdf.set_text_color(80, 80, 80)
+                        
+                        # Add finding details
+                        details = [
+                            f"Target: {finding.get('matched-at', 'N/A')}",
+                            f"Template: {finding.get('template-id', 'N/A')}",
+                            f"Type: {finding.get('type', 'N/A')}"
+                        ]
+                        
+                        description = finding.get('info', {}).get('description', '')
+                        if description:
+                            details.append(f"Description: {description[:100]}{'...' if len(description) > 100 else ''}")
+                        
+                        for detail in details:
+                            pdf.cell(0, 6, f"  {detail}", 0, 1, 'L')
+                        
+                        pdf.ln(3)
+        
+        # SSL/TLS Findings
+        if vuln_results['ssl_findings']:
+            pdf.add_page()
+            pdf.ln(10)
+            
+            pdf.set_font(font_family, 'B', 20)
+            pdf.set_text_color(40, 40, 40)
+            pdf.cell(0, 15, 'SSL/TLS CONFIGURATION ANALYSIS', 0, 1, 'L')
+            pdf.ln(5)
+            
+            for ssl_finding in vuln_results['ssl_findings']:
+                pdf.set_font(font_family, 'B', 12)
+                pdf.set_text_color(40, 40, 40)
+                pdf.cell(0, 8, f"Subdomain: {ssl_finding['subdomain']}", 0, 1, 'L')
+                
+                pdf.set_font(font_family, '', 10)
+                pdf.set_text_color(80, 80, 80)
+                
+                if ssl_finding.get('ssl_available'):
+                    pdf.cell(0, 6, f"  SSL/TLS: Available", 0, 1, 'L')
+                    pdf.cell(0, 6, f"  Certificate: {ssl_finding.get('certificate_info', 'N/A')}", 0, 1, 'L')
+                else:
+                    pdf.cell(0, 6, f"  SSL/TLS: Not Available", 0, 1, 'L')
+                
+                if ssl_finding.get('issues'):
+                    pdf.cell(0, 6, f"  Issues: {', '.join(ssl_finding['issues'])}", 0, 1, 'L')
+                
+                pdf.ln(3)
+        
+        # Recommendations
+        pdf.add_page()
+        pdf.ln(10)
+        
+        pdf.set_font(font_family, 'B', 20)
+        pdf.set_text_color(40, 40, 40)
+        pdf.cell(0, 15, 'SECURITY RECOMMENDATIONS', 0, 1, 'L')
+        pdf.ln(5)
+        
+        pdf.set_font(font_family, '', 11)
+        pdf.set_text_color(60, 60, 60)
+        
+        recommendations = [
+            "IMMEDIATE ACTIONS (Critical/High Severity):",
+            "- Address all critical and high severity vulnerabilities immediately",
+            "- Implement emergency patches for identified security flaws",
+            "- Review and strengthen access controls",
+            "- Conduct additional targeted security testing",
+            "",
+            "MEDIUM-TERM ACTIONS (Medium/Low Severity):",
+            "- Develop remediation timeline for medium and low severity issues",
+            "- Implement security headers and SSL/TLS improvements",
+            "- Regular vulnerability scanning and monitoring",
+            "- Security awareness training for development teams",
+            "",
+            "LONG-TERM SECURITY STRATEGY:",
+            "- Establish continuous security monitoring",
+            "- Implement DevSecOps practices",
+            "- Regular penetration testing and security assessments",
+            "- Incident response plan development and testing"
+        ]
+        
+        for recommendation in recommendations:
+            if recommendation == "":
+                pdf.ln(3)
+            elif recommendation.endswith(":"):
+                pdf.set_font(font_family, 'B', 12)
+                pdf.set_text_color(40, 40, 40)
+                pdf.cell(0, 8, recommendation, 0, 1, 'L')
+            else:
+                pdf.set_font(font_family, '', 11)
+                pdf.set_text_color(60, 60, 60)
+                pdf.cell(0, 6, recommendation, 0, 1, 'L')
+        
+        try:
+            pdf.output(output_path)
+            console.print(f"[green]Vulnerability report generated successfully: {output_path}[/green]")
+        except Exception as e:
+            console.print(f"[red]Error generating vulnerability report: {e}[/red]")

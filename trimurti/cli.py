@@ -3,6 +3,8 @@ import logging
 import datetime
 from trimurti.utils.report_gen import ReportGenerator
 from trimurti.brahma.port_scanner import PortScanner
+from trimurti.brahma.subdomain_discovery import SubdomainDiscovery
+from trimurti.brahma.vulnerability_scanner import VulnerabilityScanner
 from trimurti.vishnu.c2_server import C2Server
 from trimurti.shiva.exploit import Exploiter
 from trimurti.god_mode.full_control import GodMode
@@ -242,13 +244,19 @@ def discover_subdomains(target, output, verbose, quiet):
         raise
 
 @cli.command()
-@click.option('--target', '-t', required=True, help='Target IP or domain')
-@click.option('--output', '-o', default='vuln_report.pdf', help='Output report file')
-@click.option('--scan-type', default='default', help='Type of vulnerability scan to perform')
+@click.option('--target', '-t', required=True, help='Target domain (not an IP address)')
+@click.option('--mode', '-m', type=click.Choice(['brahma']), required=True, help='Mode (currently only brahma for subdomain discovery)')
+@click.option('--subdomain', is_flag=True, help='Perform subdomain discovery')
+@click.option('--vulnerability-scan', is_flag=True, help='Perform vulnerability scanning')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
 @click.option('--quiet', '-q', is_flag=True, help='Suppress all output except errors')
-def vulnerability_scan(target, output, scan_type, verbose, quiet):
-    """Perform a detailed vulnerability scan on the target"""
+def run_trimurti(target, mode, subdomain, vulnerability_scan, verbose, quiet):
+    """Run TrimurtiSec with new command structure
+    
+    Examples:
+        trimurti run-trimurti -t example.com -m brahma --subdomain
+        trimurti run-trimurti -t example.com -m brahma --vulnerability-scan
+    """
     # Configure logging level based on verbosity
     if verbose:
         logger.setLevel(logging.DEBUG)
@@ -260,32 +268,48 @@ def vulnerability_scan(target, output, scan_type, verbose, quiet):
     console = Console()
     
     try:
-        console.print(f"🔍 [bold red]Initiating vulnerability assessment on {target}[/bold red]")
-        
-        # Create dramatic vulnerability scan sequence
-        vuln_steps = [
-            "🛡️ Loading vulnerability databases...",
-            "🎯 Targeting security weaknesses...",
-            "💥 Deploying exploit detection scripts...",
-            "🔬 Analyzing security posture..."
-        ]
-        create_hacking_simulation_progress(vuln_steps, target)
-        
-        scanner = PortScanner(target)
-        results = scanner.vulnerability_scan()
-        
-        with AnimatedSpinner("📊 Compiling vulnerability assessment...", "dots12"):
-            import time
-            time.sleep(1)
-            report = ReportGenerator(target=target)
-            report.add_section("Vulnerability Scan Results", results)
-            report.generate(output)
+        if mode == 'brahma':
+            if subdomain:
+                console.print(f"[bold blue]Initiating subdomain discovery for {target}[/bold blue]")
+                
+                discovery_steps = [
+                    "Initializing subdomain enumeration engines...",
+                    "Querying global DNS infrastructure...",
+                    "Scanning certificate transparency logs...",
+                    "Crawling web archives..."
+                ]
+                create_hacking_simulation_progress(discovery_steps, target)
+                
+                discoverer = SubdomainDiscovery(target)
+                results = discoverer.discover()
+                console.print(f"[green]{results}[/green]")
+                
+            elif vulnerability_scan:
+                console.print(f"[bold red]Initiating vulnerability assessment on {target}[/bold red]")
+                
+                vuln_steps = [
+                    "Loading vulnerability databases...",
+                    "Targeting security weaknesses...",
+                    "Deploying exploit detection scripts...",
+                    "Analyzing security posture..."
+                ]
+                create_hacking_simulation_progress(vuln_steps, target)
+                
+                scanner = VulnerabilityScanner(target)
+                results = scanner.scan_vulnerabilities()
+                console.print(f"[green]{results}[/green]")
+                
+            else:
+                console.print("[yellow]Please specify either --subdomain or --vulnerability-scan[/yellow]")
+                console.print("[cyan]Available options:[/cyan]")
+                console.print("  --subdomain          Perform subdomain discovery")
+                console.print("  --vulnerability-scan  Perform vulnerability scanning")
+        else:
+            console.print(f"[red]Mode '{mode}' not supported with this command structure[/red]")
             
-        console.print(f"✅ [bold green]Vulnerability report generated: {output}[/bold green]")
-        
     except Exception as e:
-        console.print(f"❌ [bold red]Error in vulnerability scan: {str(e)}[/bold red]")
-        logger.error(f"Error in vulnerability scan: {str(e)}")
+        console.print(f"[bold red]Error during {mode} operation: {str(e)}[/bold red]")
+        logger.error(f"Error in {mode} mode: {str(e)}")
         raise
 
 if __name__ == '__main__':

@@ -1,2 +1,0 @@
-[console_scripts]
-trimurti = trimurti.cli:cli

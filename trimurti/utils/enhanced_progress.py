@@ -341,7 +341,7 @@ def create_hacking_simulation_progress(steps: List[str], target: str):
     # Create dramatic header
     header = f"""
     ╔══════════════════════════════════════════════════════╗
-    ║           🚀 INITIATING CYBER OPERATION 🚀           ║
+    ║          🚀 INITIATING CYBER OPERATION 🚀             ║
     ║                 TARGET: {target:<20}                 ║
     ╚══════════════════════════════════════════════════════╝
     """

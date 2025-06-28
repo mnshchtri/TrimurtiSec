@@ -1,6 +1,6 @@
 # Trimurti Penetration Testing Framework
 
-![Cover](./coverimage.png)
+![Cover](./Images/coverimage.png)
 
 
 A comprehensive penetration testing framework inspired by the Hindu trinity concept (Brahma, Vishnu, and Shiva), with an additional "God Mode" for complete system control. Trimurti is designed to be a modular, extensible, and powerful tool for ethical hacking and security assessment.

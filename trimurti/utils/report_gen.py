@@ -202,7 +202,7 @@ This report was generated using the TrimurtiSec Advanced Penetration Testing Fra
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">🔱 TrimurtiSec</div>
+            <div class="logo">TrimurtiSec</div>
             <div class="subtitle">Advanced Penetration Testing Framework</div>
         </div>
         
@@ -292,7 +292,7 @@ This report was generated using the TrimurtiSec Advanced Penetration Testing Fra
             )
             
             # Add title and header info
-            story.append(Paragraph("🔱 TrimurtiSec Penetration Test Report", title_style))
+            story.append(Paragraph("TrimurtiSec Penetration Test Report", title_style))
             story.append(Paragraph("Advanced Security Assessment Framework", subtitle_style))
             story.append(Spacer(1, 20))
             

@@ -81,44 +81,48 @@ pip install -e .
 
 ### Basic Commands
 
-1. Brahma Mode (Reconnaissance):
-```bash
-# Basic reconnaissance
-trimurti run -t example.com -m brahma
+1. **Run Command** - Main operation command:
+   ```bash
+   trimurti run --target example.com --mode brahma
+   ```
+   
+   **Available Modes:**
+   - `brahma` - Reconnaissance and discovery
+   - `vishnu` - Persistence establishment
+   - `shiva` - Exploitation and destruction
+   - `god` - Full system control
 
-# With subdomain discovery
-trimurti run -t example.com -m brahma --subdomain-discovery
+2. **Brahma Mode Examples:**
+   ```bash
+   # Basic reconnaissance
+   trimurti run -t example.com -m brahma
+   
+   # With subdomain discovery
+   trimurti run -t example.com -m brahma --subdomain
+   
+   # With vulnerability scanning
+   trimurti run -t example.com -m brahma --vulnerability-scan
+   
+   # With legacy subdomain discovery flag
+   trimurti run -t example.com -m brahma --subdomain-discovery
+   ```
 
-# With custom output file
-trimurti run -t example.com -m brahma -o custom_report.md
-```
+3. **Other Mode Examples:**
+   ```bash
+   # Vishnu mode (persistence)
+   trimurti run -t 192.168.1.100 -m vishnu --method cron
+   
+   # Shiva mode (exploitation)
+   trimurti run -t target.com -m shiva --exploit sql
+   
+   # God mode (full control)
+   trimurti run -t 10.0.0.1 -m god --action pivot
+   ```
 
-2. Vishnu Mode (Persistence):
-```bash
-# Basic persistence setup
-trimurti run -t 192.168.1.100 -m vishnu
-
-# With specific persistence method
-trimurti run -t 192.168.1.100 -m vishnu --method cron
-```
-
-3. Shiva Mode (Destruction):
-```bash
-# Basic exploitation
-trimurti run -t target.com -m shiva
-
-# With specific exploit type
-trimurti run -t target.com -m shiva --exploit sql
-```
-
-4. God Mode (Full Control):
-```bash
-# Basic full control
-trimurti run -t 10.0.0.1 -m god
-
-# With specific control action
-trimurti run -t 10.0.0.1 -m god --action pivot
-```
+4. **Standalone Subdomain Discovery:**
+   ```bash
+   trimurti discover_subdomains --target example.com
+   ```
 
 ### Command Options
 - `-t, --target`: Target IP address or domain (required)

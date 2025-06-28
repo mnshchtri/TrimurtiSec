@@ -86,12 +86,14 @@ def cli():
 @click.option('--mode', '-m', type=click.Choice(['brahma', 'vishnu', 'shiva', 'god']), required=True)
 @click.option('--output', '-o', default='report.pdf', help='Output report file')
 @click.option('--subdomain-discovery', '-s', is_flag=True, help='Perform subdomain discovery (Brahma mode only)')
+@click.option('--subdomain', is_flag=True, help='Perform subdomain discovery (Brahma mode only)')
+@click.option('--vulnerability-scan', is_flag=True, help='Perform vulnerability scanning (Brahma mode only)')
 @click.option('--method', '-mth', help='Specific method for Vishnu mode (cron|service|registry)')
 @click.option('--exploit', '-e', help='Specific exploit type for Shiva mode (sql|buffer|command)')
 @click.option('--action', '-a', help='Specific action for God mode (pivot|escalate|exfiltrate)')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
 @click.option('--quiet', '-q', is_flag=True, help='Suppress all output except errors')
-def run(target, mode, output, subdomain_discovery, method, exploit, action, verbose, quiet):
+def run(target, mode, output, subdomain_discovery, subdomain, vulnerability_scan, method, exploit, action, verbose, quiet):
     """Run Trimurti in specified mode with optional parameters"""
     # Configure logging level based on verbosity
     if verbose:
@@ -118,15 +120,25 @@ def run(target, mode, output, subdomain_discovery, method, exploit, action, verb
             
             scanner = PortScanner(target)
             
-            # Perform port scanning with enhanced progress
-            results = scanner.scan()
-            report.add_section("Reconnaissance Results", results)
-            
-            # Perform subdomain discovery if requested
-            if subdomain_discovery:
+            # Handle specific options for Brahma mode
+            if subdomain or subdomain_discovery:
                 console.print("\n🔍 [bold blue]Initiating Advanced Subdomain Discovery...[/bold blue]")
-                subdomain_results = scanner.discover_subdomains()
+                discoverer = SubdomainDiscovery(target)
+                subdomain_results = discoverer.discover()
                 report.add_section("Subdomain Discovery Results", subdomain_results)
+                console.print(f"[green]{subdomain_results}[/green]")
+                
+            elif vulnerability_scan:
+                console.print("\n🔍 [bold red]Initiating Vulnerability Assessment...[/bold red]")
+                vuln_scanner = VulnerabilityScanner(target)
+                vuln_results = vuln_scanner.scan_vulnerabilities()
+                report.add_section("Vulnerability Scan Results", vuln_results)
+                console.print(f"[green]{vuln_results}[/green]")
+                
+            else:
+                # Default port scanning behavior
+                results = scanner.scan()
+                report.add_section("Reconnaissance Results", results)
             
         elif mode == 'vishnu':
             if not method:
@@ -243,74 +255,6 @@ def discover_subdomains(target, output, verbose, quiet):
         logger.error(f"Error in subdomain discovery: {str(e)}")
         raise
 
-@cli.command()
-@click.option('--target', '-t', required=True, help='Target domain (not an IP address)')
-@click.option('--mode', '-m', type=click.Choice(['brahma']), required=True, help='Mode (currently only brahma for subdomain discovery)')
-@click.option('--subdomain', is_flag=True, help='Perform subdomain discovery')
-@click.option('--vulnerability-scan', is_flag=True, help='Perform vulnerability scanning')
-@click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
-@click.option('--quiet', '-q', is_flag=True, help='Suppress all output except errors')
-def run(target, mode, subdomain, vulnerability_scan, verbose, quiet):
-    """Run TrimurtiSec with separate subdomain discovery and vulnerability scan
-    
-    Examples:
-        trimurti run -t example.com -m brahma --subdomain
-        trimurti run -t example.com -m brahma --vulnerability-scan
-    """
-    # Configure logging level based on verbosity
-    if verbose:
-        logger.setLevel(logging.DEBUG)
-    elif quiet:
-        logger.setLevel(logging.ERROR)
-    else:
-        logger.setLevel(logging.INFO)
-    
-    console = Console()
-    
-    try:
-        if mode == 'brahma':
-            if subdomain:
-                console.print(f"[bold blue]Initiating subdomain discovery for {target}[/bold blue]")
-                
-                discovery_steps = [
-                    "Initializing subdomain enumeration engines...",
-                    "Querying global DNS infrastructure...",
-                    "Scanning certificate transparency logs...",
-                    "Crawling web archives..."
-                ]
-                create_hacking_simulation_progress(discovery_steps, target)
-                
-                discoverer = SubdomainDiscovery(target)
-                results = discoverer.discover()
-                console.print(f"[green]{results}[/green]")
-                
-            elif vulnerability_scan:
-                console.print(f"[bold red]Initiating vulnerability assessment on {target}[/bold red]")
-                
-                vuln_steps = [
-                    "Loading vulnerability databases...",
-                    "Targeting security weaknesses...",
-                    "Deploying exploit detection scripts...",
-                    "Analyzing security posture..."
-                ]
-                create_hacking_simulation_progress(vuln_steps, target)
-                
-                scanner = VulnerabilityScanner(target)
-                results = scanner.scan_vulnerabilities()
-                console.print(f"[green]{results}[/green]")
-                
-            else:
-                console.print("[yellow]Please specify either --subdomain or --vulnerability-scan[/yellow]")
-                console.print("[cyan]Available options:[/cyan]")
-                console.print("  --subdomain          Perform subdomain discovery")
-                console.print("  --vulnerability-scan  Perform vulnerability scanning")
-        else:
-            console.print(f"[red]Mode '{mode}' not supported with this command structure[/red]")
-            
-    except Exception as e:
-        console.print(f"[bold red]Error during {mode} operation: {str(e)}[/bold red]")
-        logger.error(f"Error in {mode} mode: {str(e)}")
-        raise
 
 if __name__ == '__main__':
     try:

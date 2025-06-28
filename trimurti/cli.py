@@ -250,12 +250,12 @@ def discover_subdomains(target, output, verbose, quiet):
 @click.option('--vulnerability-scan', is_flag=True, help='Perform vulnerability scanning')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
 @click.option('--quiet', '-q', is_flag=True, help='Suppress all output except errors')
-def run_trimurti(target, mode, subdomain, vulnerability_scan, verbose, quiet):
-    """Run TrimurtiSec with new command structure
+def run(target, mode, subdomain, vulnerability_scan, verbose, quiet):
+    """Run TrimurtiSec with separate subdomain discovery and vulnerability scan
     
     Examples:
-        trimurti run-trimurti -t example.com -m brahma --subdomain
-        trimurti run-trimurti -t example.com -m brahma --vulnerability-scan
+        trimurti run -t example.com -m brahma --subdomain
+        trimurti run -t example.com -m brahma --vulnerability-scan
     """
     # Configure logging level based on verbosity
     if verbose:

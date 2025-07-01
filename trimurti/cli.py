@@ -15,6 +15,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.align import Align
 from rich.text import Text
+from trimurti.utils.ai_analysis import analyze_recon_output, analyze_vulnerabilities
 
 # Configure logging
 logging.basicConfig(
@@ -127,14 +128,22 @@ def run(target, mode, output, subdomain_discovery, subdomain, vulnerability_scan
                 subdomain_results = discoverer.discover()
                 report.add_section("Subdomain Discovery Results", subdomain_results)
                 console.print(f"[green]{subdomain_results}[/green]")
-                
+                # AI analysis integration
+                ai_input = discoverer.get_results_for_analysis()
+                ai_analysis = analyze_recon_output(ai_input)
+                report.add_section("AI Analysis of Subdomain Discovery", ai_analysis)
+            
             elif vulnerability_scan:
                 console.print("\n🔍 [bold red]Initiating Vulnerability Assessment...[/bold red]")
                 vuln_scanner = VulnerabilityScanner(target)
                 vuln_results = vuln_scanner.scan_vulnerabilities()
                 report.add_section("Vulnerability Scan Results", vuln_results)
                 console.print(f"[green]{vuln_results}[/green]")
-                
+                # AI analysis integration
+                ai_input = vuln_scanner.get_results_for_analysis()
+                ai_analysis = analyze_vulnerabilities(ai_input)
+                report.add_section("AI Analysis of Vulnerability Scan", ai_analysis)
+            
             else:
                 # Default port scanning behavior
                 results = scanner.scan()

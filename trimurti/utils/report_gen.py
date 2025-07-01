@@ -7,11 +7,12 @@ from jinja2 import Template
 from weasyprint import HTML, CSS
 from weasyprint.text.fonts import FontConfiguration
 from reportlab.lib.pagesizes import letter, A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image, ListFlowable, ListItem
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.pdfgen import canvas
 
 class ReportGenerator:
     def __init__(self, target=None):
@@ -268,7 +269,7 @@ This report was generated using the TrimurtiSec Advanced Penetration Testing Fra
                 fontSize=24,
                 spaceAfter=30,
                 alignment=TA_CENTER,
-                textColor=colors.HexColor('#2c3e50')
+                textColor=colors.white
             )
             
             subtitle_style = ParagraphStyle(
@@ -277,7 +278,7 @@ This report was generated using the TrimurtiSec Advanced Penetration Testing Fra
                 fontSize=14,
                 spaceAfter=20,
                 alignment=TA_CENTER,
-                textColor=colors.HexColor('#7f8c8d')
+                textColor=colors.white
             )
             
             header_style = ParagraphStyle(
@@ -286,15 +287,32 @@ This report was generated using the TrimurtiSec Advanced Penetration Testing Fra
                 fontSize=16,
                 spaceAfter=15,
                 spaceBefore=20,
-                textColor=colors.HexColor('#34495e'),
-                backColor=colors.HexColor('#f8f9fa'),
+                textColor=colors.white,
+                backColor=colors.HexColor('#223A5F'),
                 borderPadding=10
+            )
+            
+            normal_white_style = ParagraphStyle(
+                'NormalWhite',
+                parent=styles['Normal'],
+                fontSize=10,
+                textColor=colors.white
             )
             
             # Add title and header info
             story.append(Paragraph("TrimurtiSec Penetration Test Report", title_style))
             story.append(Paragraph("Advanced Security Assessment Framework by neox", subtitle_style))
             story.append(Spacer(1, 20))
+            
+            # Add logo to the top of the title page if available
+            logo_path = 'Images/logo.png'
+            if os.path.exists(logo_path):
+                logo_width = 45
+                logo_height = 45
+                x_pos = (A4[0] - logo_width) / 2  # Center on page
+                story.append(Spacer(1, 10))
+                story.append(Image(logo_path, width=logo_width, height=logo_height, hAlign='CENTER'))
+                story.append(Spacer(1, 20))
             
             # Add meta information table
             meta_data = [
@@ -306,15 +324,16 @@ This report was generated using the TrimurtiSec Advanced Penetration Testing Fra
             
             meta_table = Table(meta_data, colWidths=[2*inch, 4*inch])
             meta_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#34495e')),
-                ('TEXTCOLOR', (0, 0), (0, -1), colors.whitesmoke),
+                ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#223A5F')),
+                ('TEXTCOLOR', (0, 0), (0, -1), colors.white),
                 ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
                 ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
                 ('FONTSIZE', (0, 0), (-1, -1), 10),
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
                 ('TOPPADDING', (0, 0), (-1, -1), 8),
-                ('BACKGROUND', (1, 0), (1, -1), colors.HexColor('#ecf0f1')),
-                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#bdc3c7'))
+                ('BACKGROUND', (1, 0), (1, -1), colors.HexColor('#1B2D48')),
+                ('TEXTCOLOR', (1, 0), (1, -1), colors.white),
+                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#223A5F'))
             ]))
             
             story.append(meta_table)
@@ -328,68 +347,48 @@ This report was generated using the TrimurtiSec Advanced Penetration Testing Fra
                 "vulnerability assessment, exploitation, and persistence testing. This report contains detailed "
                 "findings and recommendations for improving the security posture of the target system."
             )
-            story.append(Paragraph(summary_text, styles['Normal']))
+            story.append(Paragraph(summary_text, normal_white_style))
             story.append(Spacer(1, 20))
             
             # Add sections
             for section in self.sections:
                 story.append(Paragraph(section['title'], header_style))
-                
-                # Convert markdown content to paragraphs
                 content = section['content']
-                
-                # Process tables if present
-                if '|' in content and '---' in content:
-                    lines = content.split('\n')
-                    table_data = []
-                    in_table = False
-                    
-                    for line in lines:
-                        if '|' in line and not line.strip().startswith('#'):
-                            if '---' in line:
-                                in_table = True
-                                continue
-                            if in_table:
-                                cells = [cell.strip() for cell in line.split('|')[1:-1]]
-                                if cells and any(cell for cell in cells):
-                                    table_data.append(cells)
-                            elif not in_table and '|' in line:
-                                # Header row
-                                cells = [cell.strip() for cell in line.split('|')[1:-1]]
-                                if cells:
-                                    table_data.append(cells)
-                    
-                    if table_data:
-                        # Create table
-                        table = Table(table_data)
-                        table.setStyle(TableStyle([
-                            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#34495e')),
-                            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                            ('FONTSIZE', (0, 0), (-1, -1), 9),
-                            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                            ('TOPPADDING', (0, 0), (-1, -1), 6),
-                            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f2f2f2')])
-                        ]))
-                        story.append(table)
-                else:
-                    # Regular text content
-                    paragraphs = content.split('\n\n')
-                    for para in paragraphs:
-                        if para.strip():
-                            # Handle bullet points
-                            if para.strip().startswith('- '):
-                                bullet_items = para.split('\n')
-                                for item in bullet_items:
-                                    if item.strip().startswith('- '):
-                                        story.append(Paragraph(f"• {item.strip()[2:]}", styles['Normal']))
-                            else:
-                                story.append(Paragraph(para.strip(), styles['Normal']))
-                
+                # --- Markdown-style rendering for AI output ---
+                lines = content.splitlines()
+                i = 0
+                while i < len(lines):
+                    line = lines[i].strip()
+                    # Render markdown-style bold heading
+                    if line.startswith('**') and line.endswith('**:'):
+                        heading_text = line.strip('*:').strip()
+                        story.append(Paragraph(heading_text, header_style))
+                        i += 1
+                        continue
+                    # Render bullet list
+                    if line.startswith('- '):
+                        bullets = []
+                        while i < len(lines) and lines[i].strip().startswith('- '):
+                            bullets.append(lines[i].strip()[2:].strip())
+                            i += 1
+                        story.append(ListFlowable([
+                            ListItem(Paragraph(b, normal_white_style)) for b in bullets
+                        ], bulletType='bullet', leftIndent=20))
+                        continue
+                    # Render numbered list
+                    if line and (line[0].isdigit() and line[1:3] == '. '):
+                        numbers = []
+                        while i < len(lines) and lines[i].strip() and lines[i].strip()[0].isdigit() and lines[i].strip()[1:3] == '. ':
+                            numbers.append(lines[i].strip()[3:].strip())
+                            i += 1
+                        story.append(ListFlowable([
+                            ListItem(Paragraph(n, normal_white_style)) for n in numbers
+                        ], bulletType='1', leftIndent=20))
+                        continue
+                    # Render regular paragraph
+                    if line:
+                        story.append(Paragraph(line, normal_white_style))
+                    i += 1
                 story.append(Spacer(1, 20))
             
             # Add footer
@@ -399,20 +398,27 @@ This report was generated using the TrimurtiSec Advanced Penetration Testing Fra
                 parent=styles['Normal'],
                 fontSize=10,
                 alignment=TA_CENTER,
-                textColor=colors.HexColor('#7f8c8d')
+                textColor=colors.white
             )
             
             story.append(Spacer(1, 200))
             story.append(Paragraph("Generated by TrimurtiSec Framework v1.0.0", footer_style))
             story.append(Paragraph("Advanced Penetration Testing Suite", footer_style))
             
-            # Build PDF
-            doc.build(story)
+            # Draw background on every page
+            def draw_background(canvas, doc):
+                canvas.saveState()
+                canvas.setFillColor(colors.HexColor('#1B2D48'))
+                canvas.rect(0, 0, doc.pagesize[0], doc.pagesize[1], fill=1, stroke=0)
+                canvas.restoreState()
+
+            # Build PDF with background
+            doc.build(story, onFirstPage=draw_background, onLaterPages=draw_background)
             
         except PermissionError:
             temp_file = os.path.join(tempfile.gettempdir(), os.path.basename(output_file))
             doc = SimpleDocTemplate(temp_file, pagesize=A4)
-            doc.build(story)
+            doc.build(story, onFirstPage=draw_background, onLaterPages=draw_background)
             print(f"Warning: Permission denied for {output_file}, report saved to {temp_file}")
             return temp_file
         except Exception as e:

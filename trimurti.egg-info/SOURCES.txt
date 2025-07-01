@@ -17,5 +17,6 @@ trimurti/god_mode/full_control.py
 trimurti/shiva/__init__.py
 trimurti/shiva/exploit.py
 trimurti/utils/__init__.py
+trimurti/utils/ai_analysis.py
 trimurti/utils/enhanced_progress.py
 trimurti/utils/report_gen.py

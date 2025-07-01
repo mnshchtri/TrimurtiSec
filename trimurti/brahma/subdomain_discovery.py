@@ -119,19 +119,20 @@ class SubdomainDiscovery:
                 
             def header(self):
                 """Add header with logo to every page"""
+                # Set background color for the whole page
+                self.set_fill_color(27, 45, 72)
+                self.rect(0, 0, self.w, self.h, 'F')
                 if self.logo_path:
                     try:
-                        # Add logo to top-right corner of every page
-                        logo_width = 25
+                        logo_width = 20
                         logo_height = 20
-                        x_pos = self.w - logo_width - 10  # 10mm from right edge
+                        x_pos = self.w - logo_width - 10
                         self.image(self.logo_path, x_pos, 8, logo_width, logo_height)
                     except Exception:
-                        pass  # Silently fail if logo can't be loaded
+                        pass
                 
-                # Add TrimurtiSec text header
                 self.set_font('Arial', 'B', 12)
-                self.set_text_color(70, 70, 70)
+                self.set_text_color(255, 255, 255)
                 self.cell(0, 10, 'TrimurtiSec Penetration Testing Framework', 0, 0, 'L')
                 self.ln(15)
                 
@@ -139,7 +140,7 @@ class SubdomainDiscovery:
                 """Add footer to every page"""
                 self.set_y(-15)
                 self.set_font('Arial', '', 8)
-                self.set_text_color(128, 128, 128)
+                self.set_text_color(200, 200, 200)
                 self.cell(0, 10, f'TrimurtiSec Report | Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")} | Page {self.page_no()}', 0, 0, 'C')
         
         pdf = PDF()
@@ -154,12 +155,17 @@ class SubdomainDiscovery:
         if pdf.logo_path:
             try:
                 # Large centered logo for title page
-                logo_width = 60
+                logo_width = 45
                 logo_height = 45
                 x_pos = (pdf.w - logo_width) / 2  # Center on page
-                pdf.set_xy(x_pos, 50)
-                pdf.image(pdf.logo_path, x_pos, 50, logo_width, logo_height)
-                pdf.ln(50)  # Move down after large logo
+                pdf.set_xy(x_pos, 30)
+                pdf.image(pdf.logo_path, x_pos, 30, logo_width, logo_height)
+                pdf.ln(55)  # Move down after large logo
+                # Add slogan below logo
+                pdf.set_font(font_family, 'I', 14)
+                pdf.set_text_color(255, 215, 0)  # Gold
+                pdf.cell(0, 12, 'Three faces, one mission - Secure Everything', 0, 1, 'C')
+                pdf.ln(10)
             except Exception as e:
                 console.print(f"[yellow]Could not load title page logo: {e}[/yellow]")
                 pdf.ln(30)
@@ -167,16 +173,16 @@ class SubdomainDiscovery:
             pdf.ln(30)
         
         pdf.set_font(font_family, 'B', 28)
-        pdf.set_text_color(20, 20, 20)
+        pdf.set_text_color(0, 255, 0)  # Green
         pdf.cell(0, 20, 'TrimurtiSec Penetration Test Report', 0, 1, 'C')
         
         pdf.set_font(font_family, 'B', 18)
-        pdf.set_text_color(60, 60, 60)
+        pdf.set_text_color(255, 255, 255)
         pdf.cell(0, 15, 'Subdomain Discovery & Reconnaissance', 0, 1, 'C')
         
         pdf.ln(20)
         pdf.set_font(font_family, '', 14)
-        pdf.set_text_color(100, 100, 100)
+        pdf.set_text_color(255, 255, 255)
         pdf.cell(0, 10, f"Target Domain: {self.target}", 0, 1, 'C')
         pdf.cell(0, 8, f"Assessment Date: {datetime.now().strftime('%B %d, %Y')}", 0, 1, 'C')
         pdf.cell(0, 8, f"Report Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}", 0, 1, 'C')
@@ -184,11 +190,11 @@ class SubdomainDiscovery:
         # Add classification and confidentiality notice
         pdf.ln(30)
         pdf.set_font(font_family, 'B', 12)
-        pdf.set_text_color(150, 0, 0)
+        pdf.set_text_color(255, 0, 0)  # Red
         pdf.cell(0, 8, 'CONFIDENTIAL - PENETRATION TEST REPORT', 0, 1, 'C')
         
-        pdf.set_font(font_family, '', 10)
-        pdf.set_text_color(100, 100, 100)
+        pdf.set_font(font_family, 'I', 10)
+        pdf.set_text_color(255, 255, 255)
         pdf.ln(10)
         confidentiality_text = (
             "This document contains confidential and proprietary information. "
@@ -213,7 +219,7 @@ class SubdomainDiscovery:
         
         # Executive Summary Section
         pdf.set_font(font_family, 'B', 20)
-        pdf.set_text_color(40, 40, 40)
+        pdf.set_text_color(255, 215, 0)  # Gold
         pdf.cell(0, 15, 'EXECUTIVE SUMMARY', 0, 1, 'L')
         pdf.ln(5)
         
@@ -224,7 +230,7 @@ class SubdomainDiscovery:
         
         # Executive summary content
         pdf.set_font(font_family, '', 12)
-        pdf.set_text_color(60, 60, 60)
+        pdf.set_text_color(255, 255, 255)
         
         exec_summary = (
             f"This penetration test report presents the findings from a comprehensive subdomain discovery "
@@ -241,7 +247,7 @@ class SubdomainDiscovery:
         # Risk assessment based on findings
         if live_subdomains == 0:
             risk_level = "LOW"
-            risk_color = (0, 150, 0)
+            risk_color = (0, 255, 0)
             risk_text = (
                 "No live subdomains were discovered during this assessment, indicating a minimal "
                 "external attack surface for subdomain-based attacks. However, this does not preclude "
@@ -250,7 +256,7 @@ class SubdomainDiscovery:
             )
         elif live_subdomains <= 5:
             risk_level = "MEDIUM"
-            risk_color = (255, 165, 0)
+            risk_color = (255, 255, 0)
             risk_text = (
                 "A limited number of live subdomains were discovered. While this suggests a controlled "
                 "external presence, each discovered subdomain represents a potential entry point that "
@@ -289,12 +295,12 @@ class SubdomainDiscovery:
         
         # Key Findings Box
         pdf.set_font(font_family, 'B', 16)
-        pdf.set_text_color(40, 40, 40)
+        pdf.set_text_color(255, 215, 0)  # Gold
         pdf.cell(0, 10, 'KEY FINDINGS', 0, 1, 'L')
         pdf.ln(5)
         
         pdf.set_font(font_family, '', 12)
-        pdf.set_text_color(60, 60, 60)
+        pdf.set_text_color(255, 255, 255)
         
         key_findings = [
             f"Total subdomains enumerated: {total_subdomains}",
@@ -306,7 +312,9 @@ class SubdomainDiscovery:
         
         for finding in key_findings:
             pdf.cell(8, 8, '-', 0, 0, 'L')
+            pdf.set_text_color(255, 255, 102)  # Yellowish for subheading
             pdf.cell(0, 8, finding, 0, 1, 'L')
+            pdf.set_text_color(255, 255, 255)  # Reset to white
         
         pdf.ln(10)
         
@@ -316,7 +324,7 @@ class SubdomainDiscovery:
         
         # Detailed Technical Findings
         pdf.set_font(font_family, 'B', 20)
-        pdf.set_text_color(40, 40, 40)
+        pdf.set_text_color(255, 215, 0)  # Gold
         pdf.cell(0, 15, 'DETAILED TECHNICAL FINDINGS', 0, 1, 'L')
         pdf.ln(5)
         
@@ -326,7 +334,7 @@ class SubdomainDiscovery:
         pdf.ln(3)
         
         pdf.set_font(font_family, '', 11)
-        pdf.set_text_color(60, 60, 60)
+        pdf.set_text_color(255, 255, 255)
         
         methodology_text = (
             "The subdomain discovery assessment was conducted using a two-phase approach:\n\n"
@@ -364,7 +372,7 @@ class SubdomainDiscovery:
         
         # Summary Stats Table
         pdf.set_font(font_family, 'B', 12)
-        pdf.set_text_color(40, 40, 40)
+        pdf.set_text_color(255, 255, 255)
         pdf.cell(0, 10, 'Assessment Summary', 0, 1, 'L')
         
         pdf.set_font(font_family, '', 12)
@@ -395,7 +403,7 @@ class SubdomainDiscovery:
             pdf.ln()
 
             pdf.set_font(font_family, '', 9)
-            pdf.set_text_color(0, 0, 0)
+            pdf.set_text_color(255, 255, 255)
             fill = False
             
             if os.path.exists('reports/httpx_results.json'):
@@ -426,18 +434,18 @@ class SubdomainDiscovery:
         
         # All Discovered Subdomains Section
         pdf.set_font(font_family, 'B', 16)
-        pdf.set_text_color(40, 40, 40)
+        pdf.set_text_color(255, 215, 0)  # Gold
         pdf.cell(0, 10, '3. COMPLETE SUBDOMAIN INVENTORY', 0, 1, 'L')
         pdf.ln(5)
         
         # Live Subdomains Analysis
         pdf.set_font(font_family, 'B', 14)
-        pdf.set_text_color(0, 120, 0)
+        pdf.set_text_color(0, 255, 0)
         pdf.cell(0, 10, f'3.1 Live/Accessible Subdomains ({live_subdomains} found)', 0, 1, 'L')
         pdf.ln(3)
         
         pdf.set_font(font_family, '', 11)
-        pdf.set_text_color(60, 60, 60)
+        pdf.set_text_color(255, 255, 255)
         
         if live_subdomains > 0:
             live_analysis = (
@@ -463,7 +471,7 @@ class SubdomainDiscovery:
             # List live subdomains with details
             for i, subdomain in enumerate(sorted(self.live_subdomains), 1):
                 pdf.set_font(font_family, 'B', 10)
-                pdf.set_text_color(0, 100, 0)
+                pdf.set_text_color(255, 255, 255)
                 pdf.cell(0, 8, f"{i}. {subdomain}", 0, 1, 'L')
                 
                 # Add technical details if available
@@ -475,7 +483,7 @@ class SubdomainDiscovery:
                                 url = result.get('url', '').replace('https://', '').replace('http://', '')
                                 if url == subdomain:
                                     pdf.set_font(font_family, '', 9)
-                                    pdf.set_text_color(80, 80, 80)
+                                    pdf.set_text_color(255, 255, 255)
                                     
                                     details = [
                                         f"   IP Address: {result.get('a', ['N/A'])[0] if result.get('a') else 'N/A'}",
@@ -497,13 +505,13 @@ class SubdomainDiscovery:
         
         # Non-responsive Subdomains
         pdf.set_font(font_family, 'B', 14)
-        pdf.set_text_color(150, 150, 0)
+        pdf.set_text_color(255, 255, 0)
         non_responsive = len(self.subdomains) - live_subdomains
         pdf.cell(0, 10, f'3.2 Non-Responsive Subdomains ({non_responsive} found)', 0, 1, 'L')
         pdf.ln(3)
         
         pdf.set_font(font_family, '', 11)
-        pdf.set_text_color(60, 60, 60)
+        pdf.set_text_color(255, 255, 255)
         
         if non_responsive > 0:
             non_responsive_analysis = (
@@ -530,7 +538,7 @@ class SubdomainDiscovery:
             non_responsive_list = self.subdomains - self.live_subdomains
             for i, subdomain in enumerate(sorted(non_responsive_list), 1):
                 pdf.set_font(font_family, '', 10)
-                pdf.set_text_color(120, 120, 0)
+                pdf.set_text_color(255, 255, 255)
                 pdf.cell(0, 6, f"{i}. {subdomain}", 0, 1, 'L')
         else:
             pdf.cell(0, 8, "All discovered subdomains were confirmed as live and accessible.", 0, 1, 'L')
@@ -539,12 +547,12 @@ class SubdomainDiscovery:
         
         # Recommendations Section
         pdf.set_font(font_family, 'B', 16)
-        pdf.set_text_color(40, 40, 40)
+        pdf.set_text_color(255, 215, 0)  # Gold
         pdf.cell(0, 10, '4. SECURITY RECOMMENDATIONS', 0, 1, 'L')
         pdf.ln(5)
         
         pdf.set_font(font_family, '', 11)
-        pdf.set_text_color(60, 60, 60)
+        pdf.set_text_color(255, 255, 255)
         
         recommendations = [
             "4.1 Immediate Actions:\n"
@@ -578,10 +586,10 @@ class SubdomainDiscovery:
                 if line.strip():
                     if line.startswith('4.'):
                         pdf.set_font(font_family, 'B', 12)
-                        pdf.set_text_color(40, 40, 40)
+                        pdf.set_text_color(255, 255, 255)
                     else:
                         pdf.set_font(font_family, '', 11)
-                        pdf.set_text_color(60, 60, 60)
+                        pdf.set_text_color(255, 255, 255)
                     pdf.cell(0, 6, line, 0, 1, 'L')
                 else:
                     pdf.ln(3)
@@ -590,12 +598,12 @@ class SubdomainDiscovery:
         
         # Conclusion
         pdf.set_font(font_family, 'B', 16)
-        pdf.set_text_color(40, 40, 40)
+        pdf.set_text_color(255, 255, 255)
         pdf.cell(0, 10, '5. CONCLUSION', 0, 1, 'L')
         pdf.ln(5)
         
         pdf.set_font(font_family, '', 11)
-        pdf.set_text_color(60, 60, 60)
+        pdf.set_text_color(255, 255, 255)
         
         conclusion_text = (
             f"This subdomain discovery assessment has provided valuable insights into {self.target}'s "
@@ -979,7 +987,7 @@ class SubdomainDiscovery:
                         pass
                 
                 self.set_font('Arial', 'B', 12)
-                self.set_text_color(70, 70, 70)
+                self.set_text_color(255, 255, 255)
                 self.cell(0, 10, 'TrimurtiSec Vulnerability Assessment Report', 0, 0, 'L')
                 self.ln(15)
                 
@@ -987,7 +995,7 @@ class SubdomainDiscovery:
                 """Add footer to every page"""
                 self.set_y(-15)
                 self.set_font('Arial', '', 8)
-                self.set_text_color(128, 128, 128)
+                self.set_text_color(200, 200, 200)
                 self.cell(0, 10, f'TrimurtiSec Vulnerability Report | Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")} | Page {self.page_no()}', 0, 0, 'C')
         
         pdf = VulnPDF()
@@ -1012,16 +1020,16 @@ class SubdomainDiscovery:
             pdf.ln(30)
         
         pdf.set_font(font_family, 'B', 28)
-        pdf.set_text_color(20, 20, 20)
+        pdf.set_text_color(0, 255, 0)  # Green
         pdf.cell(0, 20, 'TrimurtiSec Vulnerability Assessment', 0, 1, 'C')
         
         pdf.set_font(font_family, 'B', 18)
-        pdf.set_text_color(60, 60, 60)
+        pdf.set_text_color(255, 255, 255)
         pdf.cell(0, 15, 'Automated Security Vulnerability Scan', 0, 1, 'C')
         
         pdf.ln(20)
         pdf.set_font(font_family, '', 14)
-        pdf.set_text_color(100, 100, 100)
+        pdf.set_text_color(255, 255, 255)
         pdf.cell(0, 10, f"Target Domain: {self.target}", 0, 1, 'C')
         pdf.cell(0, 8, f"Scan Date: {datetime.now().strftime('%B %d, %Y')}", 0, 1, 'C')
         pdf.cell(0, 8, f"Report Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}", 0, 1, 'C')
@@ -1040,17 +1048,17 @@ class SubdomainDiscovery:
             risk_color = (255, 0, 0)  # Red
         elif medium_count > 0:
             risk_level = "MEDIUM"
-            risk_color = (255, 165, 0)  # Orange
+            risk_color = (255, 255, 0)  # Yellow
         elif total_vulns > 0:
             risk_level = "LOW"
-            risk_color = (255, 255, 0)  # Yellow
+            risk_color = (0, 255, 0)  # Green
         else:
             risk_level = "INFORMATIONAL"
-            risk_color = (0, 128, 0)  # Green
+            risk_color = (0, 255, 0)  # Green
         
         pdf.ln(30)
         pdf.set_font(font_family, 'B', 16)
-        pdf.set_text_color(risk_color[0], risk_color[1], risk_color[2])
+        pdf.set_text_color(255, 215, 0)  # Gold
         pdf.cell(0, 10, f'OVERALL RISK LEVEL: {risk_level}', 0, 1, 'C')
         
         # Add new page for executive summary
@@ -1059,12 +1067,12 @@ class SubdomainDiscovery:
         
         # Executive Summary
         pdf.set_font(font_family, 'B', 20)
-        pdf.set_text_color(40, 40, 40)
+        pdf.set_text_color(255, 215, 0)  # Gold
         pdf.cell(0, 15, 'EXECUTIVE SUMMARY', 0, 1, 'L')
         pdf.ln(5)
         
         pdf.set_font(font_family, '', 12)
-        pdf.set_text_color(60, 60, 60)
+        pdf.set_text_color(255, 255, 255)
         
         exec_summary = (
             f"This vulnerability assessment report presents the findings from an automated security "
@@ -1107,7 +1115,7 @@ class SubdomainDiscovery:
         pdf.ln()
         
         pdf.set_font(font_family, '', 11)
-        pdf.set_text_color(0, 0, 0)
+        pdf.set_text_color(255, 255, 255)
         
         severity_data = [
             ('Critical', critical_count, 'Immediate Action Required', 'P1 - Fix Immediately'),
@@ -1135,7 +1143,7 @@ class SubdomainDiscovery:
             pdf.ln(10)
             
             pdf.set_font(font_family, 'B', 20)
-            pdf.set_text_color(40, 40, 40)
+            pdf.set_text_color(255, 215, 0)  # Gold
             pdf.cell(0, 15, 'DETAILED VULNERABILITY FINDINGS', 0, 1, 'L')
             pdf.ln(5)
             
@@ -1156,27 +1164,19 @@ class SubdomainDiscovery:
             for severity in ['critical', 'high', 'medium', 'low', 'info']:
                 if findings_by_severity[severity]:
                     pdf.set_font(font_family, 'B', 16)
-                    severity_colors = {
-                        'critical': (139, 0, 0),
-                        'high': (255, 0, 0),
-                        'medium': (255, 165, 0),
-                        'low': (255, 255, 0),
-                        'info': (0, 128, 0)
-                    }
-                    color = severity_colors.get(severity, (0, 0, 0))
-                    pdf.set_text_color(color[0], color[1], color[2])
+                    pdf.set_text_color(255, 215, 0)  # Gold
                     pdf.cell(0, 10, f'{severity.upper()} SEVERITY FINDINGS ({len(findings_by_severity[severity])})', 0, 1, 'L')
                     pdf.ln(3)
                     
                     for i, finding in enumerate(findings_by_severity[severity][:10], 1):  # Limit to 10 per severity
-                        pdf.set_font(font_family, 'B', 12)
-                        pdf.set_text_color(40, 40, 40)
+                        pdf.set_font(font_family, '', 12)
+                        pdf.set_text_color(255, 255, 255)
                         
                         finding_title = finding.get('info', {}).get('name', 'Unknown Vulnerability')
                         pdf.cell(0, 8, f"{i}. {finding_title}", 0, 1, 'L')
                         
                         pdf.set_font(font_family, '', 10)
-                        pdf.set_text_color(80, 80, 80)
+                        pdf.set_text_color(255, 255, 255)
                         
                         # Add finding details
                         details = [
@@ -1200,17 +1200,17 @@ class SubdomainDiscovery:
             pdf.ln(10)
             
             pdf.set_font(font_family, 'B', 20)
-            pdf.set_text_color(40, 40, 40)
+            pdf.set_text_color(255, 215, 0)  # Gold
             pdf.cell(0, 15, 'SSL/TLS CONFIGURATION ANALYSIS', 0, 1, 'L')
             pdf.ln(5)
             
             for ssl_finding in vuln_results['ssl_findings']:
-                pdf.set_font(font_family, 'B', 12)
-                pdf.set_text_color(40, 40, 40)
+                pdf.set_font(font_family, '', 12)
+                pdf.set_text_color(255, 255, 255)
                 pdf.cell(0, 8, f"Subdomain: {ssl_finding['subdomain']}", 0, 1, 'L')
                 
                 pdf.set_font(font_family, '', 10)
-                pdf.set_text_color(80, 80, 80)
+                pdf.set_text_color(255, 255, 255)
                 
                 if ssl_finding.get('ssl_available'):
                     pdf.cell(0, 6, f"  SSL/TLS: Available", 0, 1, 'L')
@@ -1228,12 +1228,12 @@ class SubdomainDiscovery:
         pdf.ln(10)
         
         pdf.set_font(font_family, 'B', 20)
-        pdf.set_text_color(40, 40, 40)
+        pdf.set_text_color(255, 215, 0)  # Gold
         pdf.cell(0, 15, 'SECURITY RECOMMENDATIONS', 0, 1, 'L')
         pdf.ln(5)
         
         pdf.set_font(font_family, '', 11)
-        pdf.set_text_color(60, 60, 60)
+        pdf.set_text_color(255, 255, 255)
         
         recommendations = [
             "IMMEDIATE ACTIONS (Critical/High Severity):",
@@ -1260,11 +1260,11 @@ class SubdomainDiscovery:
                 pdf.ln(3)
             elif recommendation.endswith(":"):
                 pdf.set_font(font_family, 'B', 12)
-                pdf.set_text_color(40, 40, 40)
+                pdf.set_text_color(255, 255, 255)
                 pdf.cell(0, 8, recommendation, 0, 1, 'L')
             else:
                 pdf.set_font(font_family, '', 11)
-                pdf.set_text_color(60, 60, 60)
+                pdf.set_text_color(255, 255, 255)
                 pdf.cell(0, 6, recommendation, 0, 1, 'L')
         
         try:
@@ -1272,3 +1272,10 @@ class SubdomainDiscovery:
             console.print(f"[green]Vulnerability report generated successfully: {output_path}[/green]")
         except Exception as e:
             console.print(f"[red]Error generating vulnerability report: {e}[/red]")
+
+    def get_results_for_analysis(self):
+        """
+        Returns the formatted subdomain discovery results as a string,
+        suitable for AI analysis or reporting.
+        """
+        return self._format_results()

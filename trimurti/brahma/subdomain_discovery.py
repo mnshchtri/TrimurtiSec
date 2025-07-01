@@ -164,7 +164,7 @@ class SubdomainDiscovery:
                 # Add slogan below logo
                 pdf.set_font(font_family, 'I', 14)
                 pdf.set_text_color(255, 215, 0)  # Gold
-                pdf.cell(0, 12, 'Three faces, one mission - Secure Everything', 0, 1, 'C')
+                pdf.cell(0, 12, '"Three faces, one mission - Secure Everything."', 0, 1, 'C')
                 pdf.ln(10)
             except Exception as e:
                 console.print(f"[yellow]Could not load title page logo: {e}[/yellow]")
@@ -656,20 +656,12 @@ class SubdomainDiscovery:
     def _probe_with_httpx(self):
         """Probe subdomains with HTTPX"""
         try:
-            # Run HTTPX to find live hosts with status code 200
+            # Use piped input for httpx for better compatibility
             cmd = (
-                f"httpx -list reports/subfinder_results.txt "
-                "-silent "
-                "-status-code "
-                "-ip "
-                "-tech-detect "
-                "-mc 200,301,302 "
-                "-title "
-                "-server "
-                "-json "
-                "-o reports/httpx_results.json"
+                f"cat reports/subfinder_results.txt | "
+                "httpx -silent -status-code -ip -tech-detect -mc 200,301,302 "
+                "-title -server -json -o reports/httpx_results.json"
             )
-            
             process = subprocess.run(cmd, shell=True, capture_output=True, text=True)
             if process.returncode != 0:
                 console.print(f"[red]HTTPX error: {process.stderr}[/red]")
@@ -684,12 +676,10 @@ class SubdomainDiscovery:
                             url = result.get('url', '').replace('https://', '').replace('http://', '')
                             if url:
                                 self.live_subdomains.add(url)
-                                # console.print(f"✅ [green]Found live subdomain: {url}[/green]")
                         except json.JSONDecodeError:
                             continue
 
             console.log(f"HTTPX identified {len(self.live_subdomains)} live subdomains")
-            
         except Exception as e:
             console.print(f"[red]Error running HTTPX: {str(e)}[/red]")
 

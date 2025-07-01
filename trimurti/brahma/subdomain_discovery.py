@@ -118,21 +118,28 @@ class SubdomainDiscovery:
                 self.logo_path = 'Images/logo.png' if os.path.exists('Images/logo.png') else None
                 
             def header(self):
-                """Add header with logo to every page"""
-                # Set background color for the whole page
-                self.set_fill_color(27, 45, 72)
-                self.rect(0, 0, self.w, self.h, 'F')
+                # Simulate a vertical gradient background from #1B2D48 to #223A5F
+                steps = 30
+                for i in range(steps):
+                    r1, g1, b1 = 27, 45, 72  # #1B2D48
+                    r2, g2, b2 = 34, 58, 95  # #223A5F
+                    r = int(r1 + (r2 - r1) * i / steps)
+                    g = int(g1 + (g2 - g1) * i / steps)
+                    b = int(b1 + (b2 - b1) * i / steps)
+                    y = self.h * i / steps
+                    self.set_fill_color(r, g, b)
+                    self.rect(0, y, self.w, self.h / steps + 1, 'F')
                 if self.logo_path:
                     try:
-                        logo_width = 20
-                        logo_height = 20
+                        # Even smaller logo for header
+                        logo_width = 10
+                        logo_height = 10
                         x_pos = self.w - logo_width - 10
                         self.image(self.logo_path, x_pos, 8, logo_width, logo_height)
                     except Exception:
                         pass
-                
-                self.set_font('Arial', 'B', 12)
-                self.set_text_color(255, 255, 255)
+                self.set_font('Arial', 'B', 9)  # Smaller font size
+                self.set_text_color(0, 255, 0)  # Green
                 self.cell(0, 10, 'TrimurtiSec Penetration Testing Framework', 0, 0, 'L')
                 self.ln(15)
                 
@@ -186,6 +193,7 @@ class SubdomainDiscovery:
         pdf.cell(0, 10, f"Target Domain: {self.target}", 0, 1, 'C')
         pdf.cell(0, 8, f"Assessment Date: {datetime.now().strftime('%B %d, %Y')}", 0, 1, 'C')
         pdf.cell(0, 8, f"Report Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}", 0, 1, 'C')
+        pdf.ln(10)
         
         # Add classification and confidentiality notice
         pdf.ln(30)
@@ -395,7 +403,7 @@ class SubdomainDiscovery:
         else:
             pdf.set_font(font_family, 'B', 10)
             pdf.set_fill_color(70, 130, 180) # SteelBlue
-            pdf.set_text_color(255, 255, 255)
+            pdf.set_text_color(0, 0, 0)  # Black
             
             col_widths = {'Subdomain': 80, 'IP Address': 40, 'Status': 20, 'Server': 50}
             for header, width in col_widths.items():
@@ -403,7 +411,7 @@ class SubdomainDiscovery:
             pdf.ln()
 
             pdf.set_font(font_family, '', 9)
-            pdf.set_text_color(255, 255, 255)
+            pdf.set_text_color(0, 0, 0)  # Black
             fill = False
             
             if os.path.exists('reports/httpx_results.json'):
@@ -440,41 +448,17 @@ class SubdomainDiscovery:
         
         # Live Subdomains Analysis
         pdf.set_font(font_family, 'B', 14)
-        pdf.set_text_color(0, 255, 0)
+        pdf.set_text_color(0, 255, 0)  # Green for heading
         pdf.cell(0, 10, f'3.1 Live/Accessible Subdomains ({live_subdomains} found)', 0, 1, 'L')
         pdf.ln(3)
         
         pdf.set_font(font_family, '', 11)
-        pdf.set_text_color(255, 255, 255)
+        pdf.set_text_color(0, 255, 0)  # Green for list
         
         if live_subdomains > 0:
-            live_analysis = (
-                "The following subdomains were confirmed as live and accessible during the assessment. "
-                "Each represents a potential entry point that should be subjected to further security "
-                "testing including vulnerability scanning, service enumeration, and penetration testing."
-            )
-            
-            # Wrap live analysis text
-            words = live_analysis.split()
-            line = ""
-            for word in words:
-                if pdf.get_string_width(line + word + " ") < 180:
-                    line += word + " "
-                else:
-                    pdf.cell(0, 6, line.strip(), 0, 1, 'L')
-                    line = word + " "
-            if line:
-                pdf.cell(0, 6, line.strip(), 0, 1, 'L')
-            
-            pdf.ln(5)
-            
-            # List live subdomains with details
             for i, subdomain in enumerate(sorted(self.live_subdomains), 1):
-                pdf.set_font(font_family, 'B', 10)
-                pdf.set_text_color(255, 255, 255)
-                pdf.cell(0, 8, f"{i}. {subdomain}", 0, 1, 'L')
-                
-                # Add technical details if available
+                # Gather details for each live subdomain
+                ip, status, server, title = 'N/A', 'N/A', 'N/A', 'N/A'
                 if os.path.exists('reports/httpx_results.json'):
                     with open('reports/httpx_results.json', 'r') as f:
                         for line in f:
@@ -482,66 +466,40 @@ class SubdomainDiscovery:
                                 result = json.loads(line.strip())
                                 url = result.get('url', '').replace('https://', '').replace('http://', '')
                                 if url == subdomain:
-                                    pdf.set_font(font_family, '', 9)
-                                    pdf.set_text_color(255, 255, 255)
-                                    
-                                    details = [
-                                        f"   IP Address: {result.get('a', ['N/A'])[0] if result.get('a') else 'N/A'}",
-                                        f"   Status Code: {result.get('status_code', 'N/A')}",
-                                        f"   Server: {result.get('webserver', 'N/A')}",
-                                        f"   Title: {result.get('title', 'N/A')[:50]}{'...' if len(str(result.get('title', ''))) > 50 else ''}"
-                                    ]
-                                    
-                                    for detail in details:
-                                        pdf.cell(0, 6, detail, 0, 1, 'L')
+                                    ip = result.get('ip', 'N/A')
+                                    status = result.get('status_code', 'N/A')
+                                    server = result.get('server', 'N/A')
+                                    title = result.get('title', 'N/A')
                                     break
-                            except (json.JSONDecodeError, KeyError):
+                            except json.JSONDecodeError:
                                 continue
+                pdf.set_text_color(0, 255, 0)  # Green for subdomain
+                pdf.cell(0, 8, f"{i}. {subdomain}", 0, 1, 'L')
+                pdf.set_text_color(255, 255, 255)  # White for details
+                pdf.cell(0, 8, f"IP Address: {ip}", 0, 1, 'L')
+                pdf.cell(0, 8, f"Status Code: {status}", 0, 1, 'L')
+                pdf.cell(0, 8, f"Server: {server}", 0, 1, 'L')
+                pdf.cell(0, 8, f"Title: {title}", 0, 1, 'L')
                 pdf.ln(2)
         else:
-            pdf.cell(0, 8, "No live subdomains were discovered during this assessment.", 0, 1, 'L')
-        
-        pdf.ln(10)
+            pdf.set_text_color(255, 255, 255)
+            pdf.cell(0, 8, "No live subdomains were discovered.", 0, 1, 'L')
         
         # Non-responsive Subdomains
         pdf.set_font(font_family, 'B', 14)
-        pdf.set_text_color(255, 255, 0)
+        pdf.set_text_color(255, 255, 255)  # White for heading
         non_responsive = len(self.subdomains) - live_subdomains
         pdf.cell(0, 10, f'3.2 Non-Responsive Subdomains ({non_responsive} found)', 0, 1, 'L')
         pdf.ln(3)
         
         pdf.set_font(font_family, '', 11)
-        pdf.set_text_color(255, 255, 255)
+        pdf.set_text_color(255, 0, 0)  # Red for list
         
         if non_responsive > 0:
-            non_responsive_analysis = (
-                "The following subdomains were discovered but did not respond to HTTP/HTTPS probes. "
-                "These may be inactive, behind firewalls, using non-standard ports, or configured "
-                "to block automated scanning tools. Further investigation may be warranted."
-            )
-            
-            # Wrap non-responsive analysis text
-            words = non_responsive_analysis.split()
-            line = ""
-            for word in words:
-                if pdf.get_string_width(line + word + " ") < 180:
-                    line += word + " "
-                else:
-                    pdf.cell(0, 6, line.strip(), 0, 1, 'L')
-                    line = word + " "
-            if line:
-                pdf.cell(0, 6, line.strip(), 0, 1, 'L')
-            
-            pdf.ln(5)
-            
-            # List non-responsive subdomains
-            non_responsive_list = self.subdomains - self.live_subdomains
-            for i, subdomain in enumerate(sorted(non_responsive_list), 1):
-                pdf.set_font(font_family, '', 10)
-                pdf.set_text_color(255, 255, 255)
+            non_responsive_list = sorted(self.subdomains - self.live_subdomains)
+            for i, subdomain in enumerate(non_responsive_list, 1):
                 pdf.cell(0, 6, f"{i}. {subdomain}", 0, 1, 'L')
-        else:
-            pdf.cell(0, 8, "All discovered subdomains were confirmed as live and accessible.", 0, 1, 'L')
+        pdf.set_text_color(255, 255, 255)  # Restore to white after list
         
         pdf.ln(15)
         
@@ -551,67 +509,62 @@ class SubdomainDiscovery:
         pdf.cell(0, 10, '4. SECURITY RECOMMENDATIONS', 0, 1, 'L')
         pdf.ln(5)
         
-        pdf.set_font(font_family, '', 11)
-        pdf.set_text_color(255, 255, 255)
-        
         recommendations = [
-            "4.1 Immediate Actions:\n"
-            "- Conduct comprehensive vulnerability scanning on all live subdomains\n"
-            "- Review subdomain inventory for unnecessary or forgotten services\n"
-            "- Implement proper access controls and authentication mechanisms\n"
-            "- Ensure all subdomains are regularly updated and patched\n\n",
-            
-            "4.2 Security Hardening:\n"
-            "- Deploy Web Application Firewalls (WAF) where appropriate\n"
-            "- Implement SSL/TLS certificates for all web services\n"
-            "- Configure proper HTTP security headers\n"
-            "- Review and minimize exposed services and ports\n\n",
-            
-            "4.3 Monitoring and Maintenance:\n"
-            "- Establish continuous subdomain monitoring\n"
-            "- Implement intrusion detection systems\n"
-            "- Regular security assessments and penetration testing\n"
-            "- Maintain an updated asset inventory\n\n",
-            
-            "4.4 Risk Mitigation:\n"
-            "- Decommission unused subdomains and services\n"
-            "- Implement network segmentation where possible\n"
-            "- Regular backup and disaster recovery testing\n"
+            "4.1 Immediate Actions:",
+            "- Conduct comprehensive vulnerability scanning on all live subdomains",
+            "- Review subdomain inventory for unnecessary or forgotten services",
+            "- Implement proper access controls and authentication mechanisms",
+            "- Ensure all subdomains are regularly updated and patched",
+            "",
+            "4.2 Security Hardening:",
+            "- Deploy Web Application Firewalls (WAF) where appropriate",
+            "- Implement SSL/TLS certificates for all web services",
+            "- Configure proper HTTP security headers",
+            "- Review and minimize exposed services and ports",
+            "",
+            "4.3 Monitoring and Maintenance:",
+            "- Establish continuous subdomain monitoring",
+            "- Implement intrusion detection systems",
+            "- Regular security assessments and penetration testing",
+            "- Maintain an updated asset inventory",
+            "",
+            "4.4 Risk Mitigation:",
+            "- Decommission unused subdomains and services",
+            "- Implement network segmentation where possible",
+            "- Regular backup and disaster recovery testing",
             "- Staff security awareness training"
         ]
+        for line in recommendations:
+            if line.startswith('- '):
+                pdf.set_font(font_family, 'I', 11)  # Italic for bullet points
+                pdf.set_text_color(255, 255, 255)
+                pdf.cell(0, 8, line, 0, 1, 'L')
+                pdf.set_font(font_family, '', 11)  # Restore normal font after bullet
+            elif line.strip() == '':
+                pdf.ln(3)
+            else:
+                pdf.set_font(font_family, 'B', 12)
+                pdf.set_text_color(255, 255, 255)
+                pdf.cell(0, 8, line, 0, 1, 'L')
         
-        for recommendation in recommendations:
-            lines = recommendation.split('\n')
-            for line in lines:
-                if line.strip():
-                    if line.startswith('4.'):
-                        pdf.set_font(font_family, 'B', 12)
-                        pdf.set_text_color(255, 255, 255)
-                    else:
-                        pdf.set_font(font_family, '', 11)
-                        pdf.set_text_color(255, 255, 255)
-                    pdf.cell(0, 6, line, 0, 1, 'L')
-                else:
-                    pdf.ln(3)
-        
-        pdf.ln(10)
-        
+        # ... end of SECURITY RECOMMENDATIONS ...
+        pdf.ln(15)  # Add extra space before CONCLUSION
         # Conclusion
         pdf.set_font(font_family, 'B', 16)
-        pdf.set_text_color(255, 255, 255)
+        pdf.set_text_color(255, 215, 0)  # Gold for heading
         pdf.cell(0, 10, '5. CONCLUSION', 0, 1, 'L')
         pdf.ln(5)
         
         pdf.set_font(font_family, '', 11)
-        pdf.set_text_color(255, 255, 255)
+        pdf.set_text_color(255, 255, 255)  # White for body text
         
         conclusion_text = (
-            f"This subdomain discovery assessment has provided valuable insights into {self.target}'s "
-            f"external digital footprint. The identification of {total_subdomains} subdomains, with "
-            f"{live_subdomains} confirmed as accessible, establishes a baseline for further security "
-            f"assessments. The findings should be used to prioritize additional penetration testing "
-            f"activities and implement appropriate security controls. Regular reassessment is "
-            f"recommended to maintain visibility into the evolving attack surface."
+            f"This subdomain discovery assessment for {self.target} has mapped the organization's external attack surface, identifying {total_subdomains} subdomains, of which {live_subdomains} are currently accessible. "
+            f"These live assets represent potential entry points for threat actors and should be prioritized for further security evaluation, including vulnerability scanning and penetration testing. "
+            f"Inactive or non-responsive subdomains, while not immediately exploitable, should be monitored for future changes or unintended exposure.\n\n"
+            f"The dynamic nature of modern infrastructures means that new subdomains may appear and existing ones may change status over time. Regular automated discovery and validation are essential to maintain an accurate inventory and reduce the risk of shadow IT.\n\n"
+            f"It is recommended that the organization integrates subdomain monitoring into its continuous security operations, promptly investigates any unexpected exposures, and enforces strict controls over DNS and web asset management. "
+            f"By maintaining visibility and acting on the findings of this assessment, {self.target} can significantly reduce its external risk profile and improve its overall cybersecurity posture."
         )
         
         # Wrap conclusion text
@@ -1245,36 +1198,43 @@ class SubdomainDiscovery:
         pdf.set_text_color(255, 255, 255)
         
         recommendations = [
-            "IMMEDIATE ACTIONS (Critical/High Severity):",
-            "- Address all critical and high severity vulnerabilities immediately",
-            "- Implement emergency patches for identified security flaws",
-            "- Review and strengthen access controls",
-            "- Conduct additional targeted security testing",
+            "4.1 Immediate Actions:",
+            "- Conduct comprehensive vulnerability scanning on all live subdomains",
+            "- Review subdomain inventory for unnecessary or forgotten services",
+            "- Implement proper access controls and authentication mechanisms",
+            "- Ensure all subdomains are regularly updated and patched",
             "",
-            "MEDIUM-TERM ACTIONS (Medium/Low Severity):",
-            "- Develop remediation timeline for medium and low severity issues",
-            "- Implement security headers and SSL/TLS improvements",
-            "- Regular vulnerability scanning and monitoring",
-            "- Security awareness training for development teams",
+            "4.2 Security Hardening:",
+            "- Deploy Web Application Firewalls (WAF) where appropriate",
+            "- Implement SSL/TLS certificates for all web services",
+            "- Configure proper HTTP security headers",
+            "- Review and minimize exposed services and ports",
             "",
-            "LONG-TERM SECURITY STRATEGY:",
-            "- Establish continuous security monitoring",
-            "- Implement DevSecOps practices",
-            "- Regular penetration testing and security assessments",
-            "- Incident response plan development and testing"
+            "4.3 Monitoring and Maintenance:",
+            "- Establish continuous subdomain monitoring",
+            "- Implement intrusion detection systems",
+            "- Regular security assessments and penetration testing",
+            "- Maintain an updated asset inventory",
+            "",
+            "4.4 Risk Mitigation:",
+            "- Decommission unused subdomains and services",
+            "- Implement network segmentation where possible",
+            "- Regular backup and disaster recovery testing",
+            "- Staff security awareness training"
         ]
         
-        for recommendation in recommendations:
-            if recommendation == "":
+        for line in recommendations:
+            if line.startswith('- '):
+                pdf.set_font(font_family, 'I', 11)  # Italic for bullet points
+                pdf.set_text_color(255, 255, 255)
+                pdf.cell(0, 8, line, 0, 1, 'L')
+                pdf.set_font(font_family, '', 11)  # Restore normal font after bullet
+            elif line.strip() == '':
                 pdf.ln(3)
-            elif recommendation.endswith(":"):
+            else:
                 pdf.set_font(font_family, 'B', 12)
                 pdf.set_text_color(255, 255, 255)
-                pdf.cell(0, 8, recommendation, 0, 1, 'L')
-            else:
-                pdf.set_font(font_family, '', 11)
-                pdf.set_text_color(255, 255, 255)
-                pdf.cell(0, 6, recommendation, 0, 1, 'L')
+                pdf.cell(0, 8, line, 0, 1, 'L')
         
         try:
             pdf.output(output_path)

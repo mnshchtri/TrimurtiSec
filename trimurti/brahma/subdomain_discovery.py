@@ -727,8 +727,27 @@ class SubdomainDiscovery:
         # Add detailed live subdomains list
         if self.live_subdomains:
             results += "\n### Live Subdomains\n\n"
+            # Table header
+            results += "| Subdomain | IP Address | Status | Server |\n"
+            results += "|:----------|:-----------|:-------|:-------|\n"
             for subdomain in sorted(self.live_subdomains):
-                results += f"- {subdomain}\n"
+                # Find the corresponding entry in httpx_results.json for details
+                ip, status, server = 'N/A', 'N/A', 'N/A'
+                if os.path.exists('reports/httpx_results.json'):
+                    with open('reports/httpx_results.json', 'r') as f:
+                        for line in f:
+                            try:
+                                result = json.loads(line.strip())
+                                url = result.get('url', '').replace('https://', '').replace('http://', '')
+                                if url == subdomain:
+                                    ip = result.get('ip', 'N/A')
+                                    status = result.get('status_code', 'N/A')
+                                    server = result.get('server', 'N/A')
+                                    break
+                            except json.JSONDecodeError:
+                                continue
+                # Use black text for table row
+                results += f"| <font color='black'>{subdomain}</font> | <font color='black'>{ip}</font> | <font color='black'>{status}</font> | <font color='black'>{server}</font> |\n"
         
         # Add file locations
         results += "\n### Report Files\n\n"

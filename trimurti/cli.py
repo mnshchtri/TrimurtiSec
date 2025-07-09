@@ -16,6 +16,8 @@ from rich.panel import Panel
 from rich.align import Align
 from rich.text import Text
 from trimurti.utils.ai_analysis import analyze_recon_output, analyze_vulnerabilities
+import os
+import pathlib
 
 # Configure logging
 logging.basicConfig(
@@ -89,14 +91,23 @@ def cli():
 @click.option('--subdomain-discovery', '-s', is_flag=True, help='Perform subdomain discovery (Brahma mode only)')
 @click.option('--subdomain', is_flag=True, help='Perform subdomain discovery (Brahma mode only)')
 @click.option('--vulnerability-scan', is_flag=True, help='Perform vulnerability scanning (Brahma mode only)')
+@click.option('--trivy-path', default=None, help='Path to directory or container image for Trivy scan (optional)')
+@click.option('--shodan-api-key', default=None, help='Shodan API key for public exposure checks (optional)')
+@click.option('--max-targets', type=int, default=10, help='Maximum number of targets to scan for vulnerability tools (default: 10)')
 @click.option('--method', '-mth', help='Specific method for Vishnu mode (cron|service|registry)')
-@click.option('--exploit', '-e', help='Specific exploit type for Shiva mode (sql|buffer|command)')
 @click.option('--action', '-a', help='Specific action for God mode (pivot|escalate|exfiltrate)')
+@click.option('--exploit', '-e', help='Specific exploit type for Shiva mode (sql|buffer|command)')
+@click.option('--scan-type', type=click.Choice(['quick', 'comprehensive', 'aggressive']), help='Scan type for Brahma mode')
+@click.option('--timeout', type=int, default=300, help='Timeout in seconds for scan')
+@click.option('--ports', help='Comma-separated port list or range (e.g., "80,443" or "1-1000")')
+@click.option('--ai-analysis', is_flag=True, help='Enable AI analysis of results')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
 @click.option('--quiet', '-q', is_flag=True, help='Suppress all output except errors')
-def run(target, mode, output, subdomain_discovery, subdomain, vulnerability_scan, method, exploit, action, verbose, quiet):
+def run(target, mode, output, subdomain_discovery, subdomain, vulnerability_scan, trivy_path, shodan_api_key, max_targets, method, exploit, action, ai_analysis, scan_type, timeout, ports, verbose, quiet):
     """Run Trimurti in specified mode with optional parameters"""
     # Configure logging level based on verbosity
+    if verbose and quiet:
+        raise click.BadOptionUsage('verbose/quiet', 'Cannot use --verbose and --quiet together')
     if verbose:
         logger.setLevel(logging.DEBUG)
     elif quiet:
@@ -105,7 +116,6 @@ def run(target, mode, output, subdomain_discovery, subdomain, vulnerability_scan
         logger.setLevel(logging.INFO)
     
     report = ReportGenerator(target=target)
-    
     console = Console()
     
     try:
@@ -119,10 +129,10 @@ def run(target, mode, output, subdomain_discovery, subdomain, vulnerability_scan
             ]
             create_hacking_simulation_progress(brahma_steps, target)
             
-            scanner = PortScanner(target)
+            scanner = PortScanner(target, scan_type=scan_type, timeout=timeout, ports=ports)
             
             # Handle specific options for Brahma mode
-            if subdomain or subdomain_discovery:
+            if subdomain_discovery or subdomain:
                 console.print("\n🔍 [bold blue]Initiating Advanced Subdomain Discovery...[/bold blue]")
                 discoverer = SubdomainDiscovery(target)
                 subdomain_results = discoverer.discover()
@@ -130,24 +140,39 @@ def run(target, mode, output, subdomain_discovery, subdomain, vulnerability_scan
                 console.print(f"[green]{subdomain_results}[/green]")
                 # AI analysis integration
                 ai_input = discoverer.get_results_for_analysis()
-                ai_analysis = analyze_recon_output(ai_input)
-                report.add_section("AI Analysis of Subdomain Discovery", ai_analysis)
+                ai_analysis_result = analyze_recon_output(ai_input)
+                report.add_section("AI Analysis of Subdomain Discovery", ai_analysis_result)
+                report.generate(output)
             
             elif vulnerability_scan:
                 console.print("\n🔍 [bold red]Initiating Vulnerability Assessment...[/bold red]")
-                vuln_scanner = VulnerabilityScanner(target)
+                vuln_scanner = VulnerabilityScanner(target, trivy_path=trivy_path, shodan_api_key=shodan_api_key, max_targets=max_targets)
                 vuln_results = vuln_scanner.scan_vulnerabilities()
                 report.add_section("Vulnerability Scan Results", vuln_results)
                 console.print(f"[green]{vuln_results}[/green]")
                 # AI analysis integration
                 ai_input = vuln_scanner.get_results_for_analysis()
-                ai_analysis = analyze_vulnerabilities(ai_input)
-                report.add_section("AI Analysis of Vulnerability Scan", ai_analysis)
+                ai_analysis_result = analyze_vulnerabilities(ai_input)
+                report.add_section("AI Analysis of Vulnerability Scan", ai_analysis_result)
+                # If Nmap XML exists, feed it to AI analysis and add findings
+                nmap_xml_path = f"reports/nmap_{target.replace('.', '_')}.xml"
+                if os.path.exists(nmap_xml_path) and os.path.getsize(nmap_xml_path) > 0:
+                    with open(nmap_xml_path, 'r') as f:
+                        nmap_xml_content = f.read()
+                    nmap_ai = analyze_vulnerabilities(nmap_xml_content)
+                    report.add_section("AI Analysis of Nmap Vulnerability Scan", nmap_ai)
+                report.generate(output)
             
             else:
                 # Default port scanning behavior
                 results = scanner.scan()
                 report.add_section("Reconnaissance Results", results)
+                console.print(f"[green]{results}[/green]")
+                # AI analysis integration for port scan results
+                ai_input = results
+                ai_analysis_result = analyze_recon_output(ai_input)
+                report.add_section("AI Analysis of Port Scan", ai_analysis_result)
+                report.generate(output)
             
         elif mode == 'vishnu':
             if not method:
@@ -166,6 +191,7 @@ def run(target, mode, output, subdomain_discovery, subdomain, vulnerability_scan
             c2 = C2Server(target)
             results = c2.establish_persistence(method)
             report.add_section("Persistence Results", results)
+            report.generate(output)
             
         elif mode == 'shiva':
             if not exploit:
@@ -184,6 +210,7 @@ def run(target, mode, output, subdomain_discovery, subdomain, vulnerability_scan
             exploiter = Exploiter(target)
             results = exploiter.run_exploits(exploit_type=exploit)
             report.add_section("Exploitation Results", results)
+            report.generate(output)
             
         elif mode == 'god':
             if not action:
@@ -247,8 +274,8 @@ def discover_subdomains(target, output, verbose, quiet):
         ]
         create_hacking_simulation_progress(discovery_steps, target)
         
-        scanner = PortScanner(target)
-        results = scanner.discover_subdomains()
+        discoverer = SubdomainDiscovery(target)
+        results = discoverer.discover()
         
         with AnimatedSpinner("📊 Compiling discovery report...", "dots12"):
             import time

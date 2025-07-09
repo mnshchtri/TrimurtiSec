@@ -365,6 +365,40 @@ This report was generated using the TrimurtiSec Advanced Penetration Testing Fra
                         story.append(Paragraph(heading_text, header_style))
                         i += 1
                         continue
+                    # Render markdown tables
+                    if line.startswith('|') and '|' in line[1:]:
+                        table_data = []
+                        # Parse table header
+                        header_row = [cell.strip() for cell in line.split('|')[1:-1]]
+                        table_data.append(header_row)
+                        i += 1
+                        # Skip separator line (|------|)
+                        if i < len(lines) and lines[i].strip().startswith('|') and '---' in lines[i]:
+                            i += 1
+                        # Parse table data rows
+                        while i < len(lines) and lines[i].strip().startswith('|'):
+                            data_row = [cell.strip() for cell in lines[i].split('|')[1:-1]]
+                            if len(data_row) == len(header_row):  # Ensure row has correct number of columns
+                                table_data.append(data_row)
+                            i += 1
+                        # Create PDF table
+                        if table_data:
+                            table = Table(table_data, colWidths=[1.2*inch, 1.5*inch, 2*inch, 0.8*inch])
+                            table.setStyle(TableStyle([
+                                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#223A5F')),
+                                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                                ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#1B2D48')),
+                                ('TEXTCOLOR', (0, 1), (-1, -1), colors.white),
+                                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#223A5F'))
+                            ]))
+                            story.append(table)
+                            story.append(Spacer(1, 10))
+                        continue
                     # Render bullet list
                     if line.startswith('- '):
                         bullets = []

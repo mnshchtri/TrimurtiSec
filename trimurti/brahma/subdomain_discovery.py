@@ -162,8 +162,8 @@ class SubdomainDiscovery:
         if pdf.logo_path:
             try:
                 # Large centered logo for title page
-                logo_width = 45
-                logo_height = 45
+                logo_width = 50
+                logo_height = 50
                 x_pos = (pdf.w - logo_width) / 2  # Center on page
                 pdf.set_xy(x_pos, 30)
                 pdf.image(pdf.logo_path, x_pos, 30, logo_width, logo_height)

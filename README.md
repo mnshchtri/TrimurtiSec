@@ -79,6 +79,122 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
+## 🤖 AI Analysis with Ollama Integration
+
+TrimurtiSec includes advanced AI-powered analysis capabilities using Ollama and the Llama 3 model to provide intelligent insights into scan results. The AI analysis automatically processes reconnaissance and vulnerability scan outputs to generate professional, actionable reports.
+
+### Prerequisites for AI Analysis
+- [Ollama](https://ollama.ai/) installed and running locally
+- Llama 3 model downloaded in Ollama
+- Internet connection (for initial Ollama setup)
+
+### Setting Up Ollama
+
+1. **Install Ollama:**
+   ```bash
+   # macOS
+   curl -fsSL https://ollama.ai/install.sh | sh
+   
+   # Linux
+   curl -fsSL https://ollama.ai/install.sh | sh
+   
+   # Windows
+   # Download from https://ollama.ai/download
+   ```
+
+2. **Start Ollama Service:**
+   ```bash
+   ollama serve
+   ```
+
+3. **Download Llama 3 Model:**
+   ```bash
+   ollama pull llama3
+   ```
+
+4. **Verify Installation:**
+   ```bash
+   ollama list
+   ```
+
+### AI Analysis Features
+
+The AI analysis module provides:
+
+- **Intelligent Reconnaissance Analysis**: Automatically analyzes subdomain discovery, port scan, and network mapping results
+- **Vulnerability Assessment**: Processes vulnerability scan outputs to identify critical security issues
+- **Professional Report Generation**: Creates well-structured, markdown-formatted analysis with:
+  - **Key Findings**: Summary of discovered assets and potential vulnerabilities
+  - **Potential Risks**: Assessment of security risks and attack vectors
+  - **Actionable Recommendations**: Specific steps to improve security posture
+  - **Technical Insights**: Detailed analysis of scan results and their implications
+
+### AI Analysis in Action
+
+When you run scans with AI analysis enabled, TrimurtiSec will:
+
+1. **Collect Scan Data**: Gather all reconnaissance and vulnerability findings
+2. **Process with Ollama**: Send data to the Llama 3 model for analysis
+3. **Generate Insights**: Create professional cybersecurity analysis
+4. **Format Results**: Present findings in structured, readable format
+5. **Include in Reports**: Add AI analysis sections to PDF and markdown reports
+
+### Example AI Analysis Output
+
+```markdown
+**Key Findings:**
+- Discovered 15 live subdomains including critical admin interfaces
+- Identified 3 open ports with potentially vulnerable services
+- Found outdated software versions on web servers
+
+**Potential Risks:**
+1. Exposed admin interfaces could be targeted by attackers
+2. Outdated software versions may contain known vulnerabilities
+3. Open ports increase the attack surface
+
+**Actionable Recommendations:**
+- Implement access controls for admin interfaces
+- Update software to latest secure versions
+- Close unnecessary ports and services
+- Conduct regular security assessments
+
+**Conclusion:**
+The target environment shows several security gaps that should be addressed promptly to reduce attack surface and improve overall security posture.
+```
+
+### Configuration
+
+The AI analysis is automatically enabled for:
+- Subdomain discovery results
+- Port scan results
+- Vulnerability scan results
+- Nmap scan results
+
+The analysis uses the default Ollama endpoint (`http://localhost:11434`) and the `llama3` model. If you need to customize these settings, you can modify the `trimurti/utils/ai_analysis.py` file.
+
+### Troubleshooting AI Analysis
+
+If AI analysis fails:
+
+1. **Check Ollama Status:**
+   ```bash
+   curl http://localhost:11434/api/tags
+   ```
+
+2. **Verify Model Availability:**
+   ```bash
+   ollama list
+   ```
+
+3. **Restart Ollama Service:**
+   ```bash
+   ollama serve
+   ```
+
+4. **Check Network Connectivity:**
+   - Ensure Ollama is accessible on localhost:11434
+   - Verify no firewall blocking the connection
+
 ## 💫 Usage
 
 ### Basic Commands

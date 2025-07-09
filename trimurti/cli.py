@@ -167,7 +167,6 @@ def run(target, mode, output, subdomain_discovery, subdomain, vulnerability_scan
                 # Default port scanning behavior
                 results = scanner.scan()
                 report.add_section("Reconnaissance Results", results)
-                console.print(f"[green]{results}[/green]")
                 # AI analysis integration for port scan results
                 ai_input = results
                 ai_analysis_result = analyze_recon_output(ai_input)

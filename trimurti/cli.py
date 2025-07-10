@@ -149,7 +149,32 @@ def run(target, mode, output, subdomain_discovery, subdomain, vulnerability_scan
                 vuln_scanner = VulnerabilityScanner(target, trivy_path=trivy_path, shodan_api_key=shodan_api_key, max_targets=max_targets)
                 vuln_results = vuln_scanner.scan_vulnerabilities()
                 report.add_section("Vulnerability Scan Results", vuln_results)
-                console.print(f"[green]{vuln_results}[/green]")
+                # --- Add WhatWeb Technology Detection Summary ---
+                if hasattr(vuln_scanner, 'whatweb_findings'):
+                    whatweb_findings = vuln_scanner.whatweb_findings
+                else:
+                    # Try to extract from vuln_results if possible
+                    import json
+                    try:
+                        results_dict = json.loads(vuln_results) if isinstance(vuln_results, str) else vuln_results
+                        whatweb_findings = results_dict.get('whatweb_findings', [])
+                    except Exception:
+                        whatweb_findings = []
+                if whatweb_findings:
+                    # Build markdown table
+                    table = '| Target | Technology | Version | Additional Info |\n'
+                    table += '|--------|------------|---------|-----------------|' + '\n'
+                    for finding in whatweb_findings:
+                        target = finding.get('target', '')
+                        plugins = finding.get('plugins', {})
+                        if plugins:
+                            for tech, details in plugins.items():
+                                version = details[0].get('version', '') if isinstance(details, list) and details else ''
+                                info = details[0].get('string', '') if isinstance(details, list) and details else ''
+                                table += f'| {target} | {tech} | {version} | {info} |\n'
+                        else:
+                            table += f'| {target} | - | - | - |\n'
+                    report.add_section('Web Technology Detection Summary', table)
                 # AI analysis integration
                 ai_input = vuln_scanner.get_results_for_analysis()
                 ai_analysis_result = analyze_vulnerabilities(ai_input)

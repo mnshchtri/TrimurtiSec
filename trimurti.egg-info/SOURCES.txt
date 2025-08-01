@@ -9,6 +9,7 @@ trimurti.egg-info/entry_points.txt
 trimurti.egg-info/requires.txt
 trimurti.egg-info/top_level.txt
 trimurti/brahma/__init__.py
+trimurti/brahma/directory_fuzzer.py
 trimurti/brahma/port_scanner.py
 trimurti/brahma/subdomain_discovery.py
 trimurti/brahma/vulnerability_scanner.py

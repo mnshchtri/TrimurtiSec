@@ -5,6 +5,7 @@ from trimurti.utils.report_gen import ReportGenerator
 from trimurti.brahma.port_scanner import PortScanner
 from trimurti.brahma.subdomain_discovery import SubdomainDiscovery
 from trimurti.brahma.vulnerability_scanner import VulnerabilityScanner
+from trimurti.brahma.directory_fuzzer import DirectoryFuzzer
 from trimurti.vishnu.c2_server import C2Server
 from trimurti.shiva.exploit import Exploiter
 from trimurti.god_mode.full_control import GodMode
@@ -41,6 +42,9 @@ TrimurtiSec - Advanced Penetration Testing Framework
 
 Usage:
   trimurti run --target example.com --mode brahma
+  trimurti run --target example.com --mode brahma --subdomain-discovery
+  trimurti run --target example.com --mode brahma --dirfuzz
+  trimurti run --target example.com --mode brahma --vulnerability-scan
   trimurti run --target 192.168.1.1 --mode vishnu
   trimurti run --target target.com --mode shiva
   trimurti run --target 10.0.0.1 --mode god
@@ -50,6 +54,9 @@ def cli():
     
     Usage:
       trimurti run --target example.com --mode brahma
+      trimurti run --target example.com --mode brahma --subdomain-discovery
+      trimurti run --target example.com --mode brahma --dirfuzz
+      trimurti run --target example.com --mode brahma --vulnerability-scan
       trimurti run --target 192.168.1.1 --mode vishnu
       trimurti run --target target.com --mode shiva
       trimurti run --target 10.0.0.1 --mode god
@@ -91,6 +98,7 @@ def cli():
 @click.option('--subdomain-discovery', '-s', is_flag=True, help='Perform subdomain discovery (Brahma mode only)')
 @click.option('--subdomain', is_flag=True, help='Perform subdomain discovery (Brahma mode only)')
 @click.option('--vulnerability-scan', is_flag=True, help='Perform vulnerability scanning (Brahma mode only)')
+@click.option('--dirfuzz', is_flag=True, help='Perform directory fuzzing on discovered subdomains (Brahma mode only)')
 @click.option('--trivy-path', default=None, help='Path to directory or container image for Trivy scan (optional)')
 @click.option('--shodan-api-key', default=None, help='Shodan API key for public exposure checks (optional)')
 @click.option('--max-targets', type=int, default=10, help='Maximum number of targets to scan for vulnerability tools (default: 10)')
@@ -103,7 +111,10 @@ def cli():
 @click.option('--ai-analysis', is_flag=True, help='Enable AI analysis of results')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
 @click.option('--quiet', '-q', is_flag=True, help='Suppress all output except errors')
-def run(target, mode, output, subdomain_discovery, subdomain, vulnerability_scan, trivy_path, shodan_api_key, max_targets, method, exploit, action, ai_analysis, scan_type, timeout, ports, verbose, quiet):
+@click.option('--gobuster-path', default=None, help='Path to gobuster binary (optional)')
+@click.option('--wpscan-path', default=None, help='Path to wpscan binary (optional)')
+@click.option('--amass-path', default=None, help='Path to amass binary (optional)')
+def run(target, mode, output, subdomain_discovery, subdomain, vulnerability_scan, dirfuzz, trivy_path, shodan_api_key, max_targets, method, exploit, action, ai_analysis, scan_type, timeout, ports, verbose, quiet, gobuster_path, wpscan_path, amass_path):
     """Run Trimurti in specified mode with optional parameters"""
     # Configure logging level based on verbosity
     if verbose and quiet:
@@ -146,7 +157,15 @@ def run(target, mode, output, subdomain_discovery, subdomain, vulnerability_scan
             
             elif vulnerability_scan:
                 console.print("\n🔍 [bold red]Initiating Vulnerability Assessment...[/bold red]")
-                vuln_scanner = VulnerabilityScanner(target, trivy_path=trivy_path, shodan_api_key=shodan_api_key, max_targets=max_targets)
+                vuln_scanner = VulnerabilityScanner(
+                    target,
+                    trivy_path=trivy_path,
+                    shodan_api_key=shodan_api_key,
+                    max_targets=max_targets,
+                    gobuster_path=gobuster_path,
+                    wpscan_path=wpscan_path,
+                    amass_path=amass_path
+                )
                 vuln_results = vuln_scanner.scan_vulnerabilities()
                 report.add_section("Vulnerability Scan Results", vuln_results)
                 # --- Add WhatWeb Technology Detection Summary ---
@@ -186,6 +205,17 @@ def run(target, mode, output, subdomain_discovery, subdomain, vulnerability_scan
                         nmap_xml_content = f.read()
                     nmap_ai = analyze_vulnerabilities(nmap_xml_content)
                     report.add_section("AI Analysis of Nmap Vulnerability Scan", nmap_ai)
+                report.generate(output)
+                
+            elif dirfuzz:
+                console.print("\n🔍 [bold blue]Initiating Directory Fuzzing on Discovered Subdomains...[/bold blue]")
+                dir_fuzzer = DirectoryFuzzer(target)
+                dir_results = dir_fuzzer.fuzz_directories()
+                report.add_section("Directory Fuzzing Results", dir_results)
+                # AI analysis integration
+                ai_input = dir_fuzzer.get_results_for_analysis()
+                ai_analysis_result = analyze_recon_output(ai_input)
+                report.add_section("AI Analysis of Directory Fuzzing", ai_analysis_result)
                 report.generate(output)
             
             else:

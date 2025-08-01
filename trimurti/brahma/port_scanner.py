@@ -9,6 +9,7 @@ from rich.table import Table
 from rich.panel import Panel
 from trimurti.brahma.subdomain_discovery import SubdomainDiscovery
 from trimurti.utils.enhanced_progress import TrimurtiProgressTracker, EnhancedProgress, AnimatedSpinner
+from trimurti.utils.report_gen import ReportGenerator
 
 console = Console()
 
@@ -20,6 +21,8 @@ class PortScanner:
         self.scan_type = scan_type
         self.ports = ports
         self._cache = {}
+        self.last_scan_stats = None
+        self.last_scan_results = None
         
     @staticmethod
     def _validate_target(target: str) -> str:
@@ -205,12 +208,227 @@ class PortScanner:
                 results += "- Increase timeout value when initializing scanner\n"
                 results += "- Check network connectivity to target\n"
             
+            # --- PDF Report Generation ---
+            import os
+            os.makedirs('reports', exist_ok=True)
+            pdf_path = f"reports/port_scan_report_{self.target.replace('.', '_')}.pdf"
+            self._generate_pdf_report(scan_stats, results, pdf_path)
             return results
             
         except Exception as e:
             error_msg = f"❌ Error during scan: {str(e)}"
             console.print(f"[red]{error_msg}[/red]")
             return error_msg
+
+    def _generate_pdf_report(self, scan_stats: dict, results: str, output_path: str):
+        """Generate a comprehensive PDF penetration test report for port scanning (same format as subdomain_discovery)"""
+        from fpdf import FPDF
+        from datetime import datetime
+        import os
+        console.print("[cyan]Using built-in Arial font for PDF generation[/cyan]")
+        class PDF(FPDF):
+            def __init__(self):
+                super().__init__()
+                self.logo_path = 'Images/logo.png' if os.path.exists('Images/logo.png') else None
+            def header(self):
+                steps = 30
+                for i in range(steps):
+                    r1, g1, b1 = 27, 45, 72
+                    r2, g2, b2 = 34, 58, 95
+                    r = int(r1 + (r2 - r1) * i / steps)
+                    g = int(g1 + (g2 - g1) * i / steps)
+                    b = int(b1 + (b2 - b1) * i / steps)
+                    y = self.h * i / steps
+                    self.set_fill_color(r, g, b)
+                    self.rect(0, y, self.w, self.h / steps + 1, 'F')
+                if self.logo_path:
+                    try:
+                        logo_width = 10
+                        logo_height = 10
+                        x_pos = self.w - logo_width - 10
+                        self.image(self.logo_path, x_pos, 8, logo_width, logo_height)
+                    except Exception:
+                        pass
+                self.set_font('Arial', 'B', 9)
+                self.set_text_color(0, 255, 0)
+                self.cell(0, 10, 'TrimurtiSec Penetration Testing Framework', 0, 0, 'L')
+                self.ln(15)
+            def footer(self):
+                self.set_y(-15)
+                self.set_font('Arial', '', 8)
+                self.set_text_color(200, 200, 200)
+                self.cell(0, 10, f'TrimurtiSec Report | Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")} | Page {self.page_no()}', 0, 0, 'C')
+        pdf = PDF()
+        pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=15)
+        font_family = 'Arial'
+        # Title Page
+        if pdf.logo_path:
+            try:
+                logo_width = 50
+                logo_height = 50
+                x_pos = (pdf.w - logo_width) / 2
+                pdf.set_xy(x_pos, 30)
+                pdf.image(pdf.logo_path, x_pos, 30, logo_width, logo_height)
+                pdf.ln(55)
+                pdf.set_font(font_family, 'I', 14)
+                pdf.set_text_color(255, 215, 0)
+                pdf.cell(0, 12, '"Three faces, one mission - Secure Everything."', 0, 1, 'C')
+                pdf.ln(10)
+            except Exception as e:
+                console.print(f"[yellow]Could not load title page logo: {e}[/yellow]")
+                pdf.ln(30)
+        else:
+            pdf.ln(30)
+        pdf.set_font(font_family, 'B', 28)
+        pdf.set_text_color(0, 255, 0)
+        pdf.cell(0, 20, 'TrimurtiSec Penetration Test Report', 0, 1, 'C')
+        pdf.set_font(font_family, 'B', 18)
+        pdf.set_text_color(255, 255, 255)
+        pdf.cell(0, 15, 'Port Scanning & Service Enumeration', 0, 1, 'C')
+        pdf.ln(20)
+        pdf.set_font(font_family, '', 14)
+        pdf.set_text_color(255, 255, 255)
+        pdf.cell(0, 10, f"Target: {self.target}", 0, 1, 'C')
+        pdf.cell(0, 8, f"Assessment Date: {datetime.now().strftime('%B %d, %Y')}", 0, 1, 'C')
+        pdf.cell(0, 8, f"Report Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}", 0, 1, 'C')
+        pdf.ln(10)
+        pdf.ln(30)
+        pdf.set_font(font_family, 'B', 12)
+        pdf.set_text_color(255, 0, 0)
+        pdf.cell(0, 8, 'CONFIDENTIAL - PENETRATION TEST REPORT', 0, 1, 'C')
+        pdf.set_font(font_family, 'I', 10)
+        pdf.set_text_color(255, 255, 255)
+        pdf.ln(10)
+        confidentiality_text = (
+            "This document contains confidential and proprietary information. "
+            "Distribution is restricted to authorized personnel only. "
+            "This report is intended solely for the organization that commissioned the assessment."
+        )
+        words = confidentiality_text.split()
+        line = ""
+        for word in words:
+            if pdf.get_string_width(line + word + " ") < 180:
+                line += word + " "
+            else:
+                pdf.cell(0, 6, line.strip(), 0, 1, 'C')
+                line = word + " "
+        if line:
+            pdf.cell(0, 6, line.strip(), 0, 1, 'C')
+        pdf.add_page()
+        pdf.ln(10)
+        # Executive Summary
+        pdf.set_font(font_family, 'B', 20)
+        pdf.set_text_color(255, 215, 0)
+        pdf.cell(0, 15, 'EXECUTIVE SUMMARY', 0, 1, 'L')
+        pdf.ln(5)
+        # Risk assessment based on open ports
+        open_ports = 0
+        if scan_stats and 'Open Ports' in results:
+            open_ports = results.count('|') - 2  # crude count, can be improved
+        if open_ports == 0:
+            risk_level = "LOW"
+            risk_color = (0, 255, 0)
+            risk_text = (
+                "No open ports were discovered during this assessment, indicating a minimal external attack surface. "
+                "However, this does not preclude the existence of ports that may be protected or filtered."
+            )
+        elif open_ports <= 5:
+            risk_level = "MEDIUM"
+            risk_color = (255, 255, 0)
+            risk_text = (
+                "A limited number of open ports were discovered. Each open port represents a potential entry point "
+                "that requires further security assessment to identify vulnerabilities."
+            )
+        else:
+            risk_level = "HIGH"
+            risk_color = (255, 0, 0)
+            risk_text = (
+                "A significant number of open ports were discovered, indicating an extensive attack surface. "
+                "This increases the probability of finding exploitable vulnerabilities and requires comprehensive review."
+            )
+        exec_summary = (
+            f"This penetration test report presents the findings from a comprehensive port scan conducted against {self.target}. "
+            f"The assessment utilized Nmap to identify and enumerate open ports and services.\n\n"
+            f"Based on the findings, the current risk level is assessed as {risk_level}. {risk_text}"
+        )
+        pdf.set_font(font_family, '', 11)
+        pdf.set_text_color(255, 255, 255)
+        words = exec_summary.split()
+        line = ""
+        for word in words:
+            if pdf.get_string_width(line + word + " ") < 180:
+                line += word + " "
+            else:
+                pdf.cell(0, 6, line.strip(), 0, 1, 'L')
+                line = word + " "
+        if line:
+            pdf.cell(0, 6, line.strip(), 0, 1, 'L')
+        pdf.ln(10)
+        pdf.set_font(font_family, 'B', 14)
+        pdf.set_text_color(risk_color[0], risk_color[1], risk_color[2])
+        pdf.cell(0, 10, f'OVERALL RISK LEVEL: {risk_level}', 0, 1, 'C')
+        pdf.ln(10)
+        pdf.set_font(font_family, 'B', 16)
+        pdf.set_text_color(255, 215, 0)
+        pdf.cell(0, 10, 'KEY FINDINGS', 0, 1, 'L')
+        pdf.ln(5)
+        pdf.set_font(font_family, '', 12)
+        # Key findings: summarize scan_stats
+        if scan_stats:
+            for key, value in scan_stats.items():
+                pdf.cell(0, 8, f"- {key}: {value}", 0, 1, 'L')
+        pdf.ln(10)
+        # Add results section
+        pdf.set_font(font_family, 'B', 18)
+        pdf.set_text_color(0, 255, 0)
+        pdf.cell(0, 15, 'DETAILED RESULTS', 0, 1, 'L')
+        pdf.ln(5)
+        pdf.set_font(font_family, '', 12)
+        # Split results into lines and add
+        for line in results.split('\n'):
+            pdf.cell(0, 8, line, 0, 1, 'L')
+        # After executive summary and before other details, add port scan table
+        # Parse table from results string
+        lines = results.split('\n')
+        table_start = -1
+        for idx, line in enumerate(lines):
+            if line.strip().startswith('| Port') and 'Service' in line:
+                table_start = idx
+                break
+        if table_start != -1:
+            # Find end of table
+            table_end = table_start + 1
+            while table_end < len(lines) and lines[table_end].strip().startswith('|'):
+                table_end += 1
+            table_lines = lines[table_start:table_end]
+            # Draw table
+            pdf.set_font(font_family, 'B', 13)
+            pdf.set_text_color(0, 255, 0)
+            pdf.cell(0, 12, 'Open Ports', 0, 1, 'L')
+            pdf.ln(2)
+            col_widths = [25, 45, 60, 25]
+            # Header
+            pdf.set_font(font_family, 'B', 12)
+            pdf.set_fill_color(34, 58, 95)
+            pdf.set_text_color(255, 255, 255)
+            headers = [h.strip() for h in table_lines[0].split('|')[1:-1]]
+            for i, h in enumerate(headers):
+                pdf.cell(col_widths[i], 10, h, 1, 0, 'C', True)
+            pdf.ln()
+            # Rows
+            pdf.set_font(font_family, '', 11)
+            for row in table_lines[2:]:
+                cells = [c.strip() for c in row.split('|')[1:-1]]
+                for i, c in enumerate(cells):
+                    pdf.cell(col_widths[i], 9, c, 1, 0, 'C')
+                pdf.ln()
+            pdf.ln(5)
+        try:
+            pdf.output(output_path)
+            console.print(f"[green]Port scan PDF report generated: {output_path}[/green]")
+        except Exception as e:
+            console.print(f"[bold red]Error generating port scan PDF report: {e}[/bold red]")
 
     def discover_subdomains(self) -> str:
         """Discover subdomains for the target domain"""

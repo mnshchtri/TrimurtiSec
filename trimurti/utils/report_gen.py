@@ -43,7 +43,7 @@ class ReportGenerator:
             return self._generate_markdown(output_file)
     
     def _generate_markdown(self, output_file):
-        """Generate a markdown report"""
+        """Generate a markdown report with a table of contents"""
         report = f"""# TrimurtiSec Penetration Test Report
 Generated on: {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')}
 Target: {self.target}
@@ -52,7 +52,13 @@ Target: {self.target}
 This report was generated using the TrimurtiSec Advanced Penetration Testing Framework.
 
 """
-        
+        # Table of Contents
+        if self.sections:
+            report += "## Table of Contents\n"
+            for i, section in enumerate(self.sections, 1):
+                anchor = section['title'].lower().replace(' ', '-').replace('.', '').replace(',', '')
+                report += f"{i}. [{section['title']}](#{anchor})\n"
+            report += "\n"
         for section in self.sections:
             report += f"## {section['title']}\n"
             report += f"{section['content']}\n\n"
@@ -72,7 +78,7 @@ This report was generated using the TrimurtiSec Advanced Penetration Testing Fra
         return output_file
     
     def _generate_html(self, output_file):
-        """Generate an HTML report with enhanced styling"""
+        """Generate an HTML report with enhanced styling and a table of contents"""
         html_template = """
 <!DOCTYPE html>
 <html lang="en">
@@ -198,6 +204,19 @@ This report was generated using the TrimurtiSec Advanced Penetration Testing Fra
             border-radius: 5px;
             margin: 20px 0;
         }
+        .toc {
+            background-color: #f8f9fa;
+            border-left: 5px solid #3498db;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .toc h2 {
+            margin-top: 0;
+        }
+        .toc ul {
+            list-style-type: decimal;
+            margin-left: 20px;
+        }
     </style>
 </head>
 <body>
@@ -218,9 +237,19 @@ This report was generated using the TrimurtiSec Advanced Penetration Testing Fra
             This report was generated using the TrimurtiSec Advanced Penetration Testing Framework.
             The framework provides comprehensive security assessment capabilities across multiple domains.
         </div>
+        {% if sections %}
+        <div class="toc">
+            <h2>Table of Contents</h2>
+            <ul>
+            {% for section in sections %}
+                <li><a href="#{{ section.title | lower | replace(' ', '-') | replace('.', '') | replace(',', '') }}">{{ section.title }}</a></li>
+            {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
         
         {% for section in sections %}
-        <h2>{{ section.title }}</h2>
+        <h2 id="{{ section.title | lower | replace(' ', '-') | replace('.', '') | replace(',', '') }}">{{ section.title }}</h2>
         <div class="content">
             {{ section.content | safe }}
         </div>
@@ -255,209 +284,269 @@ This report was generated using the TrimurtiSec Advanced Penetration Testing Fra
         return output_file
     
     def _generate_pdf_reportlab(self, output_file):
-        """Generate a professional PDF report using ReportLab"""
-        try:
-            doc = SimpleDocTemplate(output_file, pagesize=A4)
-            story = []
-            
-            # Define styles
-            styles = getSampleStyleSheet()
-            
-            title_style = ParagraphStyle(
-                'CustomTitle',
-                parent=styles['Heading1'],
-                fontSize=24,
-                spaceAfter=30,
-                alignment=TA_CENTER,
-                textColor=colors.white
-            )
-            
-            subtitle_style = ParagraphStyle(
-                'CustomSubtitle',
-                parent=styles['Normal'],
-                fontSize=14,
-                spaceAfter=20,
-                alignment=TA_CENTER,
-                textColor=colors.white
-            )
-            
-            header_style = ParagraphStyle(
-                'CustomHeader',
-                parent=styles['Heading2'],
-                fontSize=16,
-                spaceAfter=15,
-                spaceBefore=20,
-                textColor=colors.white,
-                backColor=colors.HexColor('#223A5F'),
-                borderPadding=10
-            )
-            
-            normal_white_style = ParagraphStyle(
-                'NormalWhite',
-                parent=styles['Normal'],
-                fontSize=10,
-                textColor=colors.white
-            )
-            
-            # Add title and header info
-            story.append(Paragraph("TrimurtiSec Penetration Test Report", title_style))
-            story.append(Paragraph("Advanced Security Assessment Framework by neox", subtitle_style))
-            story.append(Spacer(1, 20))
-            
-            # Add logo to the top of the title page if available
-            logo_path = 'Images/logo.png'
-            if os.path.exists(logo_path):
-                logo_width = 45
-                logo_height = 45
-                x_pos = (A4[0] - logo_width) / 2  # Center on page
-                story.append(Spacer(1, 10))
-                story.append(Image(logo_path, width=logo_width, height=logo_height, hAlign='CENTER'))
-                story.append(Spacer(1, 20))
-            
-            # Add meta information table
-            meta_data = [
-                ['Target:', self.target],
-                ['Generated:', self.timestamp.strftime('%Y-%m-%d %H:%M:%S')],
-                ['Framework Version:', '1.0.0'],
-                ['Report Type:', 'Comprehensive Security Assessment']
-            ]
-            
-            meta_table = Table(meta_data, colWidths=[2*inch, 4*inch])
-            meta_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#223A5F')),
-                ('TEXTCOLOR', (0, 0), (0, -1), colors.white),
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-                ('FONTSIZE', (0, 0), (-1, -1), 10),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-                ('TOPPADDING', (0, 0), (-1, -1), 8),
-                ('BACKGROUND', (1, 0), (1, -1), colors.HexColor('#1B2D48')),
-                ('TEXTCOLOR', (1, 0), (1, -1), colors.white),
-                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#223A5F'))
-            ]))
-            
-            story.append(meta_table)
-            story.append(Spacer(1, 30))
-            
-            # Add Executive Summary
-            story.append(Paragraph("Executive Summary", header_style))
-            summary_text = (
-                "This report was generated using the TrimurtiSec Advanced Penetration Testing Framework. "
-                "The framework provides comprehensive security assessment capabilities including reconnaissance, "
-                "vulnerability assessment, exploitation, and persistence testing. This report contains detailed "
-                "findings and recommendations for improving the security posture of the target system."
-            )
-            story.append(Paragraph(summary_text, normal_white_style))
-            story.append(Spacer(1, 20))
-            
-            # Add sections
-            for section in self.sections:
-                story.append(Paragraph(section['title'], header_style))
-                content = section['content']
-                # --- Markdown-style rendering for AI output ---
-                lines = content.splitlines()
-                i = 0
-                while i < len(lines):
-                    line = lines[i].strip()
-                    # Render markdown-style bold heading
-                    if line.startswith('**') and line.endswith('**:'):
-                        heading_text = line.strip('*:').strip()
-                        story.append(Paragraph(heading_text, header_style))
-                        i += 1
-                        continue
-                    # Render markdown tables
-                    if line.startswith('|') and '|' in line[1:]:
-                        table_data = []
-                        # Parse table header
-                        header_row = [cell.strip() for cell in line.split('|')[1:-1]]
-                        table_data.append(header_row)
-                        i += 1
-                        # Skip separator line (|------|)
-                        if i < len(lines) and lines[i].strip().startswith('|') and '---' in lines[i]:
-                            i += 1
-                        # Parse table data rows
-                        while i < len(lines) and lines[i].strip().startswith('|'):
-                            data_row = [cell.strip() for cell in lines[i].split('|')[1:-1]]
-                            if len(data_row) == len(header_row):  # Ensure row has correct number of columns
-                                table_data.append(data_row)
-                            i += 1
-                        # Create PDF table
-                        if table_data:
-                            table = Table(table_data, colWidths=[1.2*inch, 1.5*inch, 2*inch, 0.8*inch])
-                            table.setStyle(TableStyle([
-                                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#223A5F')),
-                                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-                                ('FONTSIZE', (0, 0), (-1, -1), 9),
-                                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                                ('TOPPADDING', (0, 0), (-1, -1), 6),
-                                ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#1B2D48')),
-                                ('TEXTCOLOR', (0, 1), (-1, -1), colors.white),
-                                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#223A5F'))
-                            ]))
-                            story.append(table)
-                            story.append(Spacer(1, 10))
-                        continue
-                    # Render bullet list
-                    if line.startswith('- '):
-                        bullets = []
-                        while i < len(lines) and lines[i].strip().startswith('- '):
-                            bullets.append(lines[i].strip()[2:].strip())
-                            i += 1
-                        story.append(ListFlowable([
-                            ListItem(Paragraph(b, normal_white_style)) for b in bullets
-                        ], bulletType='bullet', leftIndent=20))
-                        continue
-                    # Render numbered list
-                    if line and (line[0].isdigit() and line[1:3] == '. '):
-                        numbers = []
-                        while i < len(lines) and lines[i].strip() and lines[i].strip()[0].isdigit() and lines[i].strip()[1:3] == '. ':
-                            numbers.append(lines[i].strip()[3:].strip())
-                            i += 1
-                        story.append(ListFlowable([
-                            ListItem(Paragraph(n, normal_white_style)) for n in numbers
-                        ], bulletType='1', leftIndent=20))
-                        continue
-                    # Render regular paragraph
-                    if line:
-                        story.append(Paragraph(line, normal_white_style))
+        """Generate a visually optimized PDF report using FPDF, with improved alignment, color, and layout."""
+        from fpdf import FPDF
+        from datetime import datetime
+        import os
+        class PDF(FPDF):
+            def __init__(self):
+                super().__init__()
+                self.logo_path = 'Images/logo.png' if os.path.exists('Images/logo.png') else None
+            def header(self):
+                self.set_fill_color(27, 45, 72)
+                self.rect(0, 0, self.w, self.h, 'F')
+                if self.logo_path:
+                    try:
+                        logo_width = 18
+                        logo_height = 18
+                        x_pos = (self.w - logo_width) / 2
+                        self.image(self.logo_path, x_pos, 10, logo_width, logo_height)
+                    except Exception:
+                        pass
+                self.set_y(30)
+            def footer(self):
+                self.set_y(-20)
+                self.set_draw_color(34, 58, 95)
+                self.set_line_width(0.5)
+                self.line(10, self.get_y(), self.w - 10, self.get_y())
+                self.set_y(-15)
+                self.set_font('Arial', '', 9)
+                self.set_text_color(180, 180, 180)
+                self.cell(0, 10, f'TrimurtiSec Report | Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")} | Page {self.page_no()}', 0, 0, 'C')
+        pdf = PDF()
+        pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=20)
+        font_family = 'Arial'
+        # Title Page (centered, visually consistent)
+        pdf.set_y(40)
+        if pdf.logo_path:
+            try:
+                logo_width = 40
+                logo_height = 40
+                x_pos = (pdf.w - logo_width) / 2
+                pdf.image(pdf.logo_path, x_pos, pdf.get_y(), logo_width, logo_height)
+                pdf.ln(logo_height + 5)
+            except Exception:
+                pdf.ln(45)
+        pdf.set_font(font_family, 'B', 26)
+        pdf.set_text_color(0, 255, 0)
+        pdf.cell(0, 18, 'TrimurtiSec Penetration Test Report', 0, 1, 'C')
+        pdf.set_font(font_family, 'I', 14)
+        pdf.set_text_color(255, 215, 0)
+        pdf.cell(0, 12, '"Three faces, one mission - Secure Everything."', 0, 1, 'C')
+        pdf.ln(5)
+        pdf.set_font(font_family, '', 13)
+        pdf.set_text_color(255, 255, 255)
+        pdf.cell(0, 10, f"Target: {self.target}", 0, 1, 'C')
+        pdf.cell(0, 10, f"Assessment Date: {self.timestamp.strftime('%B %d, %Y')}", 0, 1, 'C')
+        pdf.cell(0, 10, f"Report Generated: {self.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC')}", 0, 1, 'C')
+        pdf.ln(5)
+        pdf.set_font(font_family, 'B', 12)
+        pdf.set_text_color(255, 85, 85)
+        pdf.cell(0, 10, 'CONFIDENTIAL - PENETRATION TEST REPORT', 0, 1, 'C')
+        pdf.ln(2)
+        pdf.set_font(font_family, 'I', 10)
+        pdf.set_text_color(220, 220, 220)
+        confidentiality_text = (
+            "This document contains confidential and proprietary information. "
+            "Distribution is restricted to authorized personnel only. "
+            "This report is intended solely for the organization that commissioned the assessment."
+        )
+        words = confidentiality_text.split()
+        line = ""
+        for word in words:
+            if pdf.get_string_width(line + word + " ") < 180:
+                line += word + " "
+            else:
+                pdf.cell(0, 6, line.strip(), 0, 1, 'C')
+                line = word + " "
+        if line:
+            pdf.cell(0, 6, line.strip(), 0, 1, 'C')
+        pdf.ln(10)
+        pdf.set_draw_color(34, 58, 95)
+        pdf.set_line_width(1)
+        pdf.line(20, pdf.get_y(), pdf.w - 20, pdf.get_y())
+        pdf.ln(8)
+        # Executive Summary
+        pdf.add_page()
+        pdf.set_y(25)
+        pdf.set_font(font_family, 'B', 20)
+        pdf.set_text_color(255, 215, 0)
+        pdf.cell(0, 15, 'EXECUTIVE SUMMARY', 0, 1, 'L')
+        pdf.ln(2)
+        pdf.set_draw_color(34, 58, 95)
+        pdf.set_line_width(0.7)
+        pdf.line(15, pdf.get_y(), pdf.w - 15, pdf.get_y())
+        pdf.ln(5)
+        pdf.set_font(font_family, '', 11)
+        pdf.set_text_color(255, 255, 255)
+        summary_text = (
+            "This report was generated using the TrimurtiSec Advanced Penetration Testing Framework. "
+            "The framework provides comprehensive security assessment capabilities including reconnaissance, "
+            "vulnerability assessment, exploitation, and persistence testing. This report contains detailed "
+            "findings and recommendations for improving the security posture of the target system."
+        )
+        words = summary_text.split()
+        line = ""
+        for word in words:
+            if pdf.get_string_width(line + word + " ") < 180:
+                line += word + " "
+            else:
+                pdf.cell(0, 6, line.strip(), 0, 1, 'L')
+                line = word + " "
+        if line:
+            pdf.cell(0, 6, line.strip(), 0, 1, 'L')
+        pdf.ln(8)
+        # Key Findings
+        pdf.set_font(font_family, 'B', 16)
+        pdf.set_text_color(255, 215, 0)
+        pdf.cell(0, 10, 'KEY FINDINGS', 0, 1, 'L')
+        pdf.ln(2)
+        pdf.set_font(font_family, '', 12)
+        for section in self.sections:
+            pdf.set_text_color(0, 255, 0)
+            pdf.cell(8, 8, '-', 0, 0, 'L')
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_font(font_family, 'B', 12)
+            pdf.cell(0, 8, f"{section['title']}", 0, 1, 'L')
+            pdf.set_font(font_family, '', 12)
+        pdf.ln(8)
+        # Table of Contents
+        if self.sections:
+            pdf.set_font(font_family, 'B', 18)
+            pdf.set_text_color(0, 255, 0)
+            pdf.cell(0, 15, 'TABLE OF CONTENTS', 0, 1, 'L')
+            pdf.ln(2)
+            pdf.set_font(font_family, '', 12)
+            for i, section in enumerate(self.sections, 1):
+                pdf.set_text_color(255, 255, 255)
+                pdf.cell(0, 8, f"{i}. {section['title']}", 0, 1, 'L')
+            pdf.ln(8)
+        pdf.set_draw_color(34, 58, 95)
+        pdf.set_line_width(1)
+        pdf.line(20, pdf.get_y(), pdf.w - 20, pdf.get_y())
+        pdf.ln(8)
+        # Detailed Results
+        for section in self.sections:
+            pdf.set_font(font_family, 'B', 18)
+            pdf.set_text_color(255, 215, 0)
+            pdf.cell(0, 15, section['title'], 0, 1, 'L')
+            pdf.ln(2)
+            pdf.set_draw_color(34, 58, 95)
+            pdf.set_line_width(0.7)
+            pdf.line(15, pdf.get_y(), pdf.w - 15, pdf.get_y())
+            pdf.ln(3)
+            pdf.set_font(font_family, '', 12)
+            pdf.set_text_color(255, 255, 255)
+            # Improved content rendering: parse markdown for headings, bold, lists
+            lines = section['content'].split('\n')
+            i = 0
+            while i < len(lines):
+                line = lines[i].strip()
+                if not line:
+                    pdf.ln(2)
                     i += 1
-                story.append(Spacer(1, 20))
-            
-            # Add footer
-            story.append(PageBreak())
-            footer_style = ParagraphStyle(
-                'Footer',
-                parent=styles['Normal'],
-                fontSize=10,
-                alignment=TA_CENTER,
-                textColor=colors.white
-            )
-            
-            story.append(Spacer(1, 200))
-            story.append(Paragraph("Generated by TrimurtiSec Framework v1.0.0", footer_style))
-            story.append(Paragraph("Advanced Penetration Testing Suite", footer_style))
-            
-            # Draw background on every page
-            def draw_background(canvas, doc):
-                canvas.saveState()
-                canvas.setFillColor(colors.HexColor('#1B2D48'))
-                canvas.rect(0, 0, doc.pagesize[0], doc.pagesize[1], fill=1, stroke=0)
-                canvas.restoreState()
-
-            # Build PDF with background
-            doc.build(story, onFirstPage=draw_background, onLaterPages=draw_background)
-            
-        except PermissionError:
-            temp_file = os.path.join(tempfile.gettempdir(), os.path.basename(output_file))
-            doc = SimpleDocTemplate(temp_file, pagesize=A4)
-            doc.build(story, onFirstPage=draw_background, onLaterPages=draw_background)
-            print(f"Warning: Permission denied for {output_file}, report saved to {temp_file}")
-            return temp_file
+                    continue
+                # Markdown headings
+                if line.startswith('### '):
+                    pdf.set_font(font_family, 'B', 14)
+                    pdf.set_text_color(255, 215, 0)
+                    pdf.cell(0, 10, line[4:].strip(), 0, 1, 'L')
+                    pdf.set_font(font_family, '', 12)
+                    pdf.set_text_color(255, 255, 255)
+                    i += 1
+                    continue
+                elif line.startswith('## '):
+                    pdf.set_font(font_family, 'B', 16)
+                    pdf.set_text_color(255, 215, 0)
+                    pdf.cell(0, 12, line[3:].strip(), 0, 1, 'L')
+                    pdf.set_font(font_family, '', 12)
+                    pdf.set_text_color(255, 255, 255)
+                    i += 1
+                    continue
+                elif line.startswith('# '):
+                    pdf.set_font(font_family, 'B', 18)
+                    pdf.set_text_color(255, 215, 0)
+                    pdf.cell(0, 14, line[2:].strip(), 0, 1, 'L')
+                    pdf.set_font(font_family, '', 12)
+                    pdf.set_text_color(255, 255, 255)
+                    i += 1
+                    continue
+                # Markdown bullet lists
+                elif line.startswith('- ') or line.startswith('* '):
+                    pdf.set_font(font_family, '', 12)
+                    pdf.cell(8, 8, '-', 0, 0, 'L')
+                    # Wrap bullet content
+                    bullet_content = line[2:].strip()
+                    words = bullet_content.split()
+                    wrap_line = ""
+                    for word in words:
+                        if pdf.get_string_width(wrap_line + word + " ") < 170:
+                            wrap_line += word + " "
+                        else:
+                            pdf.cell(0, 8, wrap_line.strip(), 0, 1, 'L')
+                            wrap_line = word + " "
+                    if wrap_line:
+                        pdf.cell(0, 8, wrap_line.strip(), 0, 1, 'L')
+                    i += 1
+                    continue
+                # Markdown bold (**text**)
+                elif line.startswith('**') and line.endswith('**') and len(line) > 4:
+                    pdf.set_font(font_family, 'B', 12)
+                    # Wrap bold line
+                    bold_line = line[2:-2].strip()
+                    words = bold_line.split()
+                    wrap_line = ""
+                    for word in words:
+                        if pdf.get_string_width(wrap_line + word + " ") < 170:
+                            wrap_line += word + " "
+                        else:
+                            pdf.cell(0, 8, wrap_line.strip(), 0, 1, 'L')
+                            wrap_line = word + " "
+                    if wrap_line:
+                        pdf.cell(0, 8, wrap_line.strip(), 0, 1, 'L')
+                    pdf.set_font(font_family, '', 12)
+                    i += 1
+                    continue
+                # Inline bold (**text**) in a line
+                elif '**' in line:
+                    import re
+                    bold_parts = re.split(r'(\*\*[^*]+\*\*)', line)
+                    wrap_line = ""
+                    for part in bold_parts:
+                        if part.startswith('**') and part.endswith('**'):
+                            pdf.set_font(font_family, 'B', 12)
+                            part_text = part[2:-2]
+                        else:
+                            pdf.set_font(font_family, '', 12)
+                            part_text = part
+                        words = part_text.split()
+                        for word in words:
+                            if pdf.get_string_width(wrap_line + word + " ") < 170:
+                                wrap_line += word + " "
+                            else:
+                                pdf.cell(0, 8, wrap_line.strip(), 0, 1, 'L')
+                                wrap_line = word + " "
+                    if wrap_line:
+                        pdf.cell(0, 8, wrap_line.strip(), 0, 1, 'L')
+                    i += 1
+                    continue
+                # Paragraphs and wrapped lines
+                else:
+                    words = line.split()
+                    wrap_line = ""
+                    for word in words:
+                        if pdf.get_string_width(wrap_line + word + " ") < 170:
+                            wrap_line += word + " "
+                        else:
+                            pdf.cell(0, 8, wrap_line.strip(), 0, 1, 'L')
+                            wrap_line = word + " "
+                    if wrap_line:
+                        pdf.cell(0, 8, wrap_line.strip(), 0, 1, 'L')
+                    i += 1
+            pdf.ln(5)
+        try:
+            pdf.output(output_file)
         except Exception as e:
-            print(f"Error generating PDF: {str(e)}")
-            # Fallback to markdown
-            return self._generate_markdown(output_file.replace('.pdf', '.md'))
-        
+            print(f"[bold red]Error generating PDF report: {e}[/bold red]")
         return output_file
